@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TikTok Storybook Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous" onerror="window.__segScriptFailed=true"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overscroll-behavior-y: none; }
+
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .timeline-ghost { opacity: 0.4; background: #334155; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+
+        .screen { display: none; flex-direction: column; height: 100%; animation: fadeIn 0.3s ease-in-out; }
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .scrollable-area { overscroll-behavior-y: contain; }
+
+        /* FX picker */
+        .fx-tile { position:relative; border-radius:12px; overflow:hidden; border:2px solid transparent;
+            background:#1e293b; cursor:pointer; transition:.15s; }
+        .fx-tile.sel { border-color:#ec4899; box-shadow:0 0 0 2px rgba(236,72,153,.35); }
+        .fx-tile:active { transform:scale(.96); }
+        .fx-tile .lbl { position:absolute; bottom:0; left:0; right:0; font-size:10px; font-weight:600;
+            padding:3px 2px; text-align:center; background:linear-gradient(to top,rgba(0,0,0,.85),transparent); }
+        .fx-tr { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+            aspect-ratio:1; font-size:22px; color:#e2e8f0; }
+        .fx-tr .t { font-size:10px; font-weight:600; color:#cbd5e1; }
+        .badge-mini { font-size:9px; font-weight:700; padding:1px 5px; border-radius:5px; letter-spacing:.04em; }
+    </style>
+</head>
+<body class="h-[100dvh] w-full flex flex-col overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-center shrink-0 z-20 shadow-md">
+        <h1 class="text-lg font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
+            Storybook Studio
+        </h1>
+    </header>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700 transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 translate-y-[-20px]">
+        <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="toastMsg" class="text-sm font-medium">Message here</span>
+    </div>
+
+    <main class="flex-1 relative overflow-hidden bg-slate-900">
+
+        <!-- SCREEN 1: MUSIC -->
+        <div id="screen-music" class="screen active p-6 scrollable-area overflow-y-auto">
+            <div class="max-w-md mx-auto w-full">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-400">
+                        <span class="font-bold">1</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Master Audio</h2>
+                </div>
+                <p class="text-slate-400 text-sm mb-6">Upload the song or sound that will drive your story. The length of this track determines the length of your final video.</p>
+
+                <div class="relative group cursor-pointer mb-6">
+                    <input type="file" id="audioInput" accept="audio/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                    <div class="w-full bg-slate-800 border-2 border-dashed border-slate-600 rounded-2xl p-8 text-center active:border-pink-500 transition-colors flex flex-col items-center shadow-lg">
+                        <svg class="w-12 h-12 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2z"></path></svg>
+                        <span id="audioFileName" class="text-base font-semibold text-slate-200">Tap to Upload Song</span>
+                        <span class="text-sm text-slate-500 mt-1">MP3, WAV, M4A</span>
+                        <audio id="masterAudioPlayer" class="hidden"></audio>
+                    </div>
+                </div>
+
+                <div id="audioStats" class="hidden bg-slate-800/50 rounded-xl p-4 border border-slate-700 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                        <span class="text-slate-300 font-medium">Track Loaded</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-slate-500">Duration</div>
+                        <div class="text-pink-400 font-mono font-bold text-lg"><span id="audioDurationTxt">0.0</span>s</div>
+                    </div>
+                </div>
+
+                <button onclick="switchTab('timeline')" class="w-full mt-8 bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 px-4 rounded-xl shadow border border-slate-600 flex justify-between items-center active:scale-95 transition">
+                    <span>Continue to Timeline</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: TIMELINE -->
+        <div id="screen-timeline" class="screen flex-col h-full bg-slate-900">
+            <div class="p-4 border-b border-slate-800 bg-slate-900 z-10 shrink-0 grid grid-cols-2 gap-2">
+                <div class="relative cursor-pointer">
+                    <input type="file" id="mediaInput" accept="image/*,video/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                    <div class="h-full bg-gradient-to-r from-pink-600/20 to-violet-600/20 border border-pink-500/30 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-pink-600/30 transition">
+                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        <span class="font-semibold text-pink-100 text-sm">Upload</span>
+                    </div>
+                </div>
+                <button id="openCameraBtn" class="bg-gradient-to-r from-rose-600/25 to-red-600/25 border border-rose-500/40 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-rose-600/40 transition">
+                    <svg class="w-5 h-5 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <span class="font-semibold text-rose-50 text-sm">Record</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 scrollable-area pb-24">
+                <div id="emptyTimeline" class="h-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl p-6 text-center">
+                    <svg class="w-16 h-16 mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <p class="text-sm">Your timeline is empty.</p>
+                    <p class="text-xs mt-1">Tap above to add media.</p>
+                </div>
+                <div id="timeline" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: EXPORT -->
+        <div id="screen-export" class="screen p-6 scrollable-area overflow-y-auto">
+            <div class="max-w-md mx-auto w-full">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400">
+                        <span class="font-bold">3</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Final Review</h2>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 mb-6 shadow-xl">
+                    <h3 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-4 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        Timeline Math
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center text-sm bg-slate-900/50 p-2 rounded-lg">
+                            <span class="text-slate-300">Total Song Length:</span>
+                            <span id="mathTotal" class="font-mono font-bold text-white">0.0s</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm bg-slate-900/50 p-2 rounded-lg">
+                            <span class="text-slate-300">Locked Media Time:</span>
+                            <span id="mathVideos" class="font-mono text-slate-400">-0.0s</span>
+                        </div>
+                        <div class="w-full h-px bg-slate-700 my-1"></div>
+                        <div class="flex justify-between items-center text-base p-2 bg-gradient-to-r from-pink-500/10 to-violet-500/10 rounded-lg border border-pink-500/20">
+                            <span class="text-pink-100 font-medium">Auto-Fill Remaining:</span>
+                            <span id="mathSplit" class="font-mono text-pink-400 font-bold text-lg">0.0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transition speed -->
+                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 mb-8 shadow-xl">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">Transition Speed</span>
+                        <span id="transSpeedTxt" class="text-pink-400 font-mono font-bold text-sm">0.5s</span>
+                    </div>
+                    <input id="transSpeed" type="range" min="0.2" max="1.2" step="0.05" value="0.5" class="w-full accent-pink-500 h-1.5 bg-slate-900 rounded-lg cursor-pointer">
+                    <p class="text-[11px] text-slate-500 mt-2">Applies to every clip's transition. Auto-shortens if a clip is very short.</p>
+                </div>
+
+                <button id="renderBtn" class="w-full bg-gradient-to-r from-pink-600 to-violet-600 active:from-pink-500 active:to-violet-500 text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-pink-500/25 transform transition active:scale-95 flex justify-center items-center gap-3 text-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Render & Download
+                </button>
+                <p class="text-center text-xs text-slate-500 mt-4">Keep your screen open while rendering.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="h-16 bg-slate-900 border-t border-slate-800 flex justify-around items-center shrink-0 z-20 pb-safe">
+        <button onclick="switchTab('music')" id="tab-music" class="flex-1 flex flex-col items-center justify-center gap-1 text-pink-500 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2z"></path></svg>
+            <span class="text-[10px] font-semibold">Music</span>
+        </button>
+        <button onclick="switchTab('timeline')" id="tab-timeline" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+            <span class="text-[10px] font-semibold">Timeline</span>
+        </button>
+        <button onclick="switchTab('export')" id="tab-export" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <span class="text-[10px] font-semibold">Export</span>
+        </button>
+    </nav>
+
+    <!-- Render Overlay -->
+    <div id="renderOverlay" class="fixed inset-0 bg-slate-900/98 backdrop-blur-3xl z-[100] hidden flex-col items-center justify-center px-4">
+        <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">Recording Video...</h2>
+        <p class="text-slate-400 text-sm mb-8 text-center">Do not close this app or lock your screen.</p>
+        <div class="relative w-[225px] h-[400px] bg-black rounded-xl overflow-hidden shadow-2xl shadow-pink-500/20 border border-slate-700">
+            <canvas id="renderCanvas" width="720" height="1280" class="w-full h-full object-cover"></canvas>
+            <div class="absolute bottom-0 left-0 right-0 h-2 bg-slate-800">
+                <div id="renderProgress" class="h-full bg-gradient-to-r from-pink-500 to-violet-500 w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+        <button id="cancelRenderBtn" class="mt-8 text-slate-400 hover:text-white px-8 py-3 rounded-full border border-slate-600 hover:bg-slate-800 transition active:scale-95">
+            Cancel Process
+        </button>
+    </div>
+
+    <!-- Duration Modal -->
+    <div id="durationModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Set Display Time
+            </h3>
+            <p class="text-xs text-slate-400">Lock in an exact duration for this media, or let it auto-fill the remaining time of your song.</p>
+            <div class="flex items-center gap-3 mt-2">
+                <input type="number" id="durationInput" step="0.1" min="0.1" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-pink-500" placeholder="e.g. 15.0">
+                <span class="text-slate-400 font-bold">seconds</span>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="saveDuration(true)" class="flex-1 py-3 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition border border-slate-700">Auto-Fill Time</button>
+                <button onclick="saveDuration(false)" class="flex-1 py-3 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Save Exact Time</button>
+            </div>
+            <button onclick="closeDurationModal()" class="mt-2 text-slate-500 hover:text-white text-xs underline active:scale-95 transition">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Crop Modal -->
+    <div id="cropModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl max-h-[94dvh] overflow-y-auto scrollable-area">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
+                Framing & Crop
+            </h3>
+
+            <!-- Fill / Fit toggle -->
+            <div class="grid grid-cols-2 gap-2">
+                <button id="modeFillBtn" class="py-2 rounded-xl text-xs font-bold border transition active:scale-95">Fill Frame</button>
+                <button id="modeFitBtn" class="py-2 rounded-xl text-xs font-bold border transition active:scale-95">Fit Whole Photo</button>
+            </div>
+            <p id="modeHelp" class="text-[11px] text-slate-500 leading-snug"></p>
+
+            <!-- Live preview = exact render output -->
+            <div id="cropViewport" class="relative w-[198px] h-[352px] bg-black rounded-xl overflow-hidden shadow-inner border border-slate-700 self-center cursor-grab active:cursor-grabbing touch-none select-none">
+                <canvas id="cropCanvas" width="396" height="704" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                <div class="absolute inset-0 pointer-events-none">
+                    <div class="absolute left-1/2 top-0 bottom-0 w-px bg-white/10"></div>
+                    <div class="absolute top-1/2 left-0 right-0 h-px bg-white/10"></div>
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-500 text-center -mt-1">Drag to reposition · this is exactly how it will export</p>
+
+            <!-- Shown only when the active item is a video -->
+            <button id="cropVideoPlayBtn" class="hidden w-full py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2">
+                <span id="cropVideoPlayIcon">▶</span><span id="cropVideoPlayLabel">Play preview · check the action stays in frame</span>
+            </button>
+
+            <div class="space-y-3 text-sm mt-1">
+                <div>
+                    <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Zoom</span><span id="zoomValue" class="text-pink-400 font-mono font-bold">1.00x</span></div>
+                    <input id="cropZoomSlider" type="range" min="1" max="4" step="0.02" value="1" class="w-full accent-pink-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div id="xWrap">
+                        <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Horizontal</span><span id="xHint" class="text-[10px] text-slate-600"></span></div>
+                        <input id="cropXSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-violet-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
+                    <div id="yWrap">
+                        <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Vertical</span><span id="yHint" class="text-[10px] text-slate-600"></span></div>
+                        <input id="cropYSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-violet-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
+                </div>
+                <button id="cropCenterBtn" class="w-full py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition">Re-center Photo</button>
+            </div>
+
+            <div class="flex gap-2 mt-2">
+                <button id="cancelCropBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition">Cancel</button>
+                <button id="saveCropBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FX Modal (NEW) -->
+    <div id="fxModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl max-h-[90dvh] overflow-y-auto scrollable-area">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="text-pink-500 text-xl">✨</span> Filters & Transition
+            </h3>
+
+            <div>
+                <p class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">Color Filter</p>
+                <div id="filterGrid" class="grid grid-cols-4 gap-2"></div>
+            </div>
+
+            <div>
+                <p class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1 mt-2">Transition Out</p>
+                <p class="text-[11px] text-slate-500 mb-3">Plays when moving from this clip to the next one.</p>
+                <div id="transGrid" class="grid grid-cols-4 gap-2"></div>
+            </div>
+
+            <div class="flex gap-2 mt-2">
+                <button id="cancelFxBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition">Cancel</button>
+                <button id="saveFxBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal (NEW) -->
+    <div id="cameraModal" class="fixed inset-0 bg-black z-[120] hidden flex-col">
+        <!-- Top bar -->
+        <div class="flex items-center justify-between p-3 bg-gradient-to-b from-black/90 to-transparent">
+            <button id="cameraCloseBtn" class="text-white p-2 active:scale-90 transition" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="text-white text-xs font-semibold tracking-wider opacity-70">CAMERA</div>
+            <button id="cameraFlipBtn" class="text-white p-2 active:scale-90 transition" aria-label="Flip camera">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </div>
+
+        <!-- Background picker -->
+        <div id="cameraBgBar" class="shrink-0 bg-black/70 border-b border-white/10">
+            <div class="px-3 pt-2 text-[11px] text-slate-400 font-semibold">Background — pick a photo to stand in front of</div>
+            <div id="cameraBgStrip" class="px-3 py-2 flex gap-2 overflow-x-auto scrollable-area"></div>
+            <div id="cameraModeRow" class="hidden px-3 pb-2 gap-2">
+                <button id="modeCutoutBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">✂️ Replace</button>
+                <button id="modeBubbleBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">⭕ Bubble</button>
+                <button id="modePhotoBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">🖼️ Photo only</button>
+            </div>
+            <div id="cameraBubbleRow" class="hidden px-3 pb-3 flex-col gap-1">
+                <div class="flex justify-between text-[11px] text-slate-400"><span>Bubble size</span><span id="bubbleSizeTxt" class="text-cyan-300 font-mono">55%</span></div>
+                <input id="bubbleSize" type="range" min="0.22" max="0.9" step="0.01" value="0.55" class="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                <div class="text-[11px] text-cyan-200/80 text-center mt-1">👆 Drag the bubble on the screen to move it</div>
+            </div>
+            <input type="file" id="cameraBgUpload" accept="image/*" hidden>
+        </div>
+
+        <!-- Live preview / review -->
+        <div class="flex-1 relative flex items-center justify-center overflow-hidden bg-black">
+            <video id="cameraPreview" autoplay muted playsinline class="hidden"></video>
+            <canvas id="cameraCanvas" width="720" height="1280" class="max-h-full max-w-full"></canvas>
+            <video id="cameraReview" playsinline class="hidden max-h-full max-w-full"></video>
+            <div id="cameraRecBadge" class="hidden absolute top-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg">
+                <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                REC <span id="cameraTimer" class="font-mono">0:00</span>
+            </div>
+            <div id="cameraEnableHint" class="absolute inset-0 flex items-center justify-center text-white text-sm text-center p-6 opacity-80 pointer-events-none">
+                Loading camera… approve the camera &amp; microphone prompt.
+            </div>
+        </div>
+
+        <!-- Bottom controls -->
+        <div class="p-6 pb-8 flex flex-col items-center gap-4 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
+            <button id="cameraMusicBtn" class="px-4 py-2 rounded-full text-xs font-bold border border-slate-600 bg-slate-800 text-slate-300 active:scale-95 transition flex items-center gap-2">
+                🎵 <span id="cameraMusicLabel">Play my song while recording: OFF</span>
+            </button>
+            <button id="cameraMicBtn" class="px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2">
+                🎤 <span id="cameraMicLabel">Mic: ON</span>
+            </button>
+            <p id="cameraMusicHint" class="hidden text-amber-300/90 text-[11px] text-center max-w-xs -mt-2">🎧 Use headphones for clean lip-sync. Music ON records the song into your clip; turn Mic OFF for pure lip-sync, ON to sing along.</p>
+            <p id="cameraHint" class="text-slate-300 text-xs text-center max-w-xs">Tap the red button to start recording yourself talking or singing.</p>
+
+            <div id="cameraLiveControls" class="flex items-center justify-center gap-6 w-full">
+                <div class="w-12 h-12"></div>
+                <button id="cameraRecordBtn" class="w-20 h-20 rounded-full bg-white/10 border-4 border-white shadow-2xl active:scale-95 transition flex items-center justify-center">
+                    <div id="cameraRecordInner" class="w-16 h-16 rounded-full bg-red-500 transition-all"></div>
+                </button>
+                <div class="w-12 h-12 flex items-center justify-center">
+                    <span id="cameraQualityHint" class="text-[10px] text-slate-500 font-mono"></span>
+                </div>
+            </div>
+
+            <div id="cameraReviewControls" class="hidden flex-row items-center justify-center gap-3 w-full">
+                <button id="cameraRetakeBtn" class="px-5 py-3 bg-slate-800 text-white rounded-full text-sm font-semibold active:scale-95 transition border border-slate-700">↺ Retake</button>
+                <button id="cameraUseBtn" class="px-6 py-3 bg-gradient-to-r from-pink-600 to-violet-600 text-white rounded-full text-sm font-bold active:scale-95 transition shadow-lg">✓ Use this take</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cycle Modal (NEW) -->
+    <div id="cycleModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-2xl max-h-[94dvh] overflow-y-auto scrollable-area">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2"><span class="text-amber-400 text-xl">🔁</span> Auto-Cycle FX</h3>
+            <p class="text-xs text-slate-400 leading-snug">Show this photo for the whole remaining song length, switching to a fresh filter + transition combo every few seconds. One photo, dozens of looks — cropped once.</p>
+
+            <div>
+                <div class="flex justify-between mb-1 text-slate-400 text-xs">
+                    <span>Seconds per slide</span>
+                    <span id="cycleSecTxt" class="text-amber-300 font-mono font-bold">3.0s</span>
+                </div>
+                <input id="cycleSec" type="range" min="0.5" max="10" step="0.1" value="3" class="w-full accent-amber-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                <div class="flex justify-between text-[10px] text-slate-600 mt-1"><span>0.5s · fast</span><span>10s · slow</span></div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 space-y-1">
+                <div class="flex justify-between text-xs"><span class="text-slate-400">Available time</span>
+                    <span id="cycleTimeTxt" class="text-slate-300 font-mono">0:00</span></div>
+                <div class="flex justify-between text-xs"><span class="text-slate-400">Slides generated</span>
+                    <span id="cycleCountTxt" class="text-amber-300 font-bold font-mono">~ 0</span></div>
+                <div class="flex justify-between text-xs"><span class="text-slate-400">Unique combos</span>
+                    <span class="text-slate-300 font-mono">81</span></div>
+            </div>
+
+            <div>
+                <p class="text-xs text-slate-400 mb-2">Sneak peek of the rotation</p>
+                <div id="cycleComboStrip" class="flex gap-1 overflow-x-auto scrollable-area pb-1"></div>
+            </div>
+
+            <div class="flex gap-2 mt-2">
+                <button id="cycleOffBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition border border-slate-700">Turn Off</button>
+                <button id="cycleSaveBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply Cycle</button>
+            </div>
+            <button id="cycleCancelBtn" class="text-slate-500 hover:text-white text-xs underline mx-auto active:scale-95 transition">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // ---------------- State ----------------
+        let state = {
+            audioDuration: 15.0,
+            audioFile: null,
+            items: [],
+            isRendering: false,
+            transDur: 0.5
+        };
+
+        // Filter + transition definitions
+        const FILTERS = {
+            none:    { name:'Normal',  css:'none' },
+            bw:      { name:'B&W',     css:'grayscale(1) contrast(1.1)' },
+            vintage: { name:'Vintage', css:'sepia(.45) saturate(1.3) contrast(.95) brightness(1.05)' },
+            vivid:   { name:'Vivid',   css:'saturate(1.6) contrast(1.15)' },
+            cool:    { name:'Cool',    css:'saturate(1.1) hue-rotate(-12deg) brightness(1.05) contrast(1.05)' },
+            warm:    { name:'Warm',    css:'sepia(.25) saturate(1.4) hue-rotate(-8deg) brightness(1.05)' },
+            dreamy:  { name:'Dreamy',  css:'saturate(1.2) brightness(1.12) contrast(.9) blur(.6px)' },
+            noir:    { name:'Noir',    css:'grayscale(1) contrast(1.5) brightness(.9)' },
+            fade:    { name:'Faded',   css:'saturate(.7) contrast(.85) brightness(1.08)' }
+        };
+        const TRANSITIONS = {
+            cut:     { name:'Cut',    icon:'⬛' },
+            fade:    { name:'Fade',   icon:'🌫️' },
+            slide:   { name:'Slide',  icon:'➡️' },
+            slideup: { name:'Up',     icon:'⬆️' },
+            wipe:    { name:'Wipe',   icon:'🧹' },
+            zoom:    { name:'Punch',  icon:'💥' },
+            spin:    { name:'Spin',   icon:'🌀' },
+            flash:   { name:'Flash',  icon:'⚡' },
+            glitch:  { name:'Glitch', icon:'📺' }
+        };
+
+        const DOM = {
+            audioInput: document.getElementById('audioInput'),
+            audioFileName: document.getElementById('audioFileName'),
+            audioDurationTxt: document.getElementById('audioDurationTxt'),
+            audioStats: document.getElementById('audioStats'),
+            masterAudioPlayer: document.getElementById('masterAudioPlayer'),
+            mediaInput: document.getElementById('mediaInput'),
+            timeline: document.getElementById('timeline'),
+            emptyTimeline: document.getElementById('emptyTimeline'),
+            mathTotal: document.getElementById('mathTotal'),
+            mathVideos: document.getElementById('mathVideos'),
+            mathSplit: document.getElementById('mathSplit'),
+            renderBtn: document.getElementById('renderBtn'),
+            renderOverlay: document.getElementById('renderOverlay'),
+            renderCanvas: document.getElementById('renderCanvas'),
+            renderProgress: document.getElementById('renderProgress'),
+            cancelRenderBtn: document.getElementById('cancelRenderBtn'),
+            toast: document.getElementById('toast'),
+            toastMsg: document.getElementById('toastMsg'),
+            durationModal: document.getElementById('durationModal'),
+            durationInput: document.getElementById('durationInput'),
+            transSpeed: document.getElementById('transSpeed'),
+            transSpeedTxt: document.getElementById('transSpeedTxt')
+        };
+
+        function showToast(message) {
+            DOM.toastMsg.textContent = message;
+            DOM.toast.classList.remove('opacity-0', 'translate-y-[-20px]');
+            DOM.toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                DOM.toast.classList.remove('opacity-100', 'translate-y-0');
+                DOM.toast.classList.add('opacity-0', 'translate-y-[-20px]');
+            }, 3000);
+        }
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => {
+                el.classList.remove('text-pink-500'); el.classList.add('text-slate-500');
+            });
+            document.getElementById('screen-' + tabName).classList.add('active');
+            document.getElementById('tab-' + tabName).classList.remove('text-slate-500');
+            document.getElementById('tab-' + tabName).classList.add('text-pink-500');
+        };
+
+        new Sortable(DOM.timeline, {
+            animation: 150, ghostClass: 'timeline-ghost', handle: '.drag-handle',
+            onEnd: function () {
+                const ids = Array.from(DOM.timeline.children).map(el => el.dataset.id);
+                state.items = ids.map(id => state.items.find(i => i.id === id));
+                updateMath(); renderTimelineUI();
+            }
+        });
+
+        DOM.transSpeed.addEventListener('input', e => {
+            state.transDur = parseFloat(e.target.value);
+            DOM.transSpeedTxt.textContent = state.transDur.toFixed(2) + 's';
+        });
+
+        DOM.audioInput.addEventListener('change', function(e) {
+            const file = e.target.files[0]; if (!file) return;
+            state.audioFile = file;
+            DOM.audioFileName.textContent = file.name;
+            DOM.masterAudioPlayer.src = URL.createObjectURL(file);
+            DOM.masterAudioPlayer.onloadedmetadata = function() {
+                state.audioDuration = DOM.masterAudioPlayer.duration;
+                DOM.audioStats.classList.remove('hidden');
+                DOM.audioDurationTxt.textContent = state.audioDuration.toFixed(1);
+                updateMath(); renderTimelineUI();
+            };
+        });
+
+        // Shared helper — adds a single file (image or video) as a timeline item.
+        // Options: knownDuration (skip metadata detect), defaultMute (false for camera clips so the voice plays).
+        async function addMediaFile(file, opts = {}) {
+            DOM.emptyTimeline.classList.add('hidden');
+            const id = 'item-' + Math.random().toString(36).substr(2, 9);
+            const isVideo = file.type.startsWith('video') || /\.(mp4|mov|webm|avi|mkv)$/i.test(file.name);
+            const type = isVideo ? 'video' : 'image';
+            const objectUrl = URL.createObjectURL(file);
+            let nativeDuration = 0;
+
+            if (type === 'video') {
+                if (opts.knownDuration && opts.knownDuration > 0) {
+                    nativeDuration = opts.knownDuration;
+                } else {
+                    nativeDuration = await new Promise((resolve) => {
+                        const v = document.createElement('video');
+                        v.preload = 'metadata'; v.muted = true; v.playsInline = true;
+                        const t = setTimeout(() => resolve(15.0), 2500);
+                        v.onloadedmetadata = () => {
+                            clearTimeout(t);
+                            resolve((v.duration && v.duration !== Infinity) ? v.duration : 15.0);
+                        };
+                        v.onerror = () => { clearTimeout(t); resolve(15.0); };
+                        v.src = objectUrl; v.load();
+                    });
+                }
+            }
+
+            const domElement = document.createElement(type === 'image' ? 'img' : 'video');
+            if (type === 'image') {
+                await new Promise((resolve) => {
+                    domElement.onload = () => resolve();
+                    domElement.onerror = () => resolve();
+                    domElement.src = objectUrl;
+                    if (domElement.complete) resolve();
+                });
+            } else {
+                domElement.src = objectUrl;
+                domElement.playsInline = true;
+                domElement.preload = 'auto';
+                domElement.loop = false;
+            }
+
+            state.items.push({
+                id, type, file, url: objectUrl, domElement,
+                nativeDuration, calcDuration: nativeDuration || 3,
+                customDuration: null,
+                loop: type === 'image',
+                mute: opts.defaultMute !== undefined ? opts.defaultMute : true,
+                fitMode: (type === 'video') ? 'fit' : 'fill',
+                zoom: 1.0, offX: 0, offY: 0,
+                filter: 'none',
+                transition: 'fade',
+                cycle: null,
+                fromCamera: !!opts.fromCamera
+            });
+        }
+
+        DOM.mediaInput.addEventListener('change', async function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            for (let file of files) {
+                await addMediaFile(file);
+            }
+            updateMath(); renderTimelineUI();
+            DOM.mediaInput.value = '';
+        });
+
+        // ---------------- Timeline math (unchanged logic) ----------------
+        function updateMath() {
+            if (state.items.length === 0) {
+                DOM.mathTotal.textContent = state.audioDuration.toFixed(1) + "s";
+                DOM.mathVideos.textContent = "-0.0s";
+                DOM.mathSplit.textContent = "0.0s";
+                return;
+            }
+            let fixedTime = 0, fluidItems = [];
+            state.items.forEach(item => {
+                if (item.customDuration !== null && item.customDuration !== undefined) {
+                    fixedTime += item.customDuration; item.calcDuration = item.customDuration;
+                } else if (item.type === 'video' && !item.loop) {
+                    fixedTime += item.nativeDuration; item.calcDuration = item.nativeDuration;
+                } else { fluidItems.push(item); }
+            });
+            let remaining = Math.max(0, state.audioDuration - fixedTime);
+            let per = 0;
+            if (fluidItems.length > 0) {
+                per = remaining / fluidItems.length;
+                fluidItems.forEach(i => i.calcDuration = per);
+            }
+            DOM.mathTotal.textContent = state.audioDuration.toFixed(1) + "s";
+            DOM.mathVideos.textContent = `-${fixedTime.toFixed(1)}s`;
+            DOM.mathSplit.textContent = fluidItems.length > 0 ? `${per.toFixed(1)}s` : `0.0s`;
+        }
+
+        // ---------------- Timeline UI ----------------
+        function renderTimelineUI() {
+            DOM.timeline.innerHTML = '';
+            state.items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-800 rounded-xl p-3 flex items-center gap-3 border border-slate-700 shadow-sm relative';
+                el.dataset.id = item.id;
+
+                const thumbHtml = item.type === 'image'
+                    ? `<img src="${item.url}" class="w-full h-full object-cover">`
+                    : `<video src="${item.url}#t=0.1" preload="metadata" class="w-full h-full object-cover"></video>`;
+
+                let controlsHtml = '';
+                if (item.type === 'video') {
+                    const isFit = (item.fitMode || 'fit') === 'fit';
+                    controlsHtml += `
+                        <button onclick="toggleMute('${item.id}')" class="p-2 rounded-lg ${item.mute ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'} active:scale-90 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                ${item.mute
+                                    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />'
+                                    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M12 5v14l-7-7H4a1 1 0 01-1-1v-4a1 1 0 011-1h1l7-7z" />'}
+                            </svg>
+                        </button>
+                        <button onclick="toggleLoop('${item.id}')" class="p-2 rounded-lg ${item.loop ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-slate-700 text-slate-400'} active:scale-90 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        </button>
+                        <button onclick="toggleVideoFit('${item.id}')" class="p-2 rounded-lg ${isFit ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/50' : 'bg-slate-700 text-slate-300 border border-slate-600'} active:scale-90 transition flex items-center justify-center gap-1" title="Show whole video / crop to fill">
+                            <span class="text-sm leading-none">${isFit ? '🖼️' : '🔍'}</span>
+                            <span class="text-[10px] font-semibold px-0.5">${isFit ? 'Whole' : 'Fill'}</span>
+                        </button>
+                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
+                            <span class="text-[10px] font-semibold px-1">Crop</span>
+                        </button>`;
+                } else {
+                    controlsHtml += `
+                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
+                            <span class="text-[10px] font-semibold px-1">Crop</span>
+                        </button>
+                        <button onclick="openCycleModal('${item.id}')" class="p-2 rounded-lg ${item.cycle?.enabled ? 'bg-amber-500/30 text-amber-200 border border-amber-400/60' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'} active:scale-90 transition flex items-center justify-center gap-1">
+                            <span class="text-sm leading-none">🔁</span>
+                            <span class="text-[10px] font-semibold px-0.5">Cycle</span>
+                        </button>`;
+                }
+                // FX button — both images and videos
+                controlsHtml += `
+                    <button onclick="openFxModal('${item.id}')" class="p-2 rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                        <span class="text-sm leading-none">✨</span>
+                        <span class="text-[10px] font-semibold px-0.5">FX</span>
+                    </button>`;
+
+                const timeBadgeClass = item.customDuration !== null
+                    ? 'text-pink-400 border border-pink-500/50 bg-pink-500/10'
+                    : 'text-slate-300 bg-slate-900 border border-transparent';
+                const timeLabel = item.customDuration !== null ? 'LOCKED' : 'AUTO';
+
+                const fName = FILTERS[item.filter] ? FILTERS[item.filter].name : 'Normal';
+                const tName = TRANSITIONS[item.transition] ? TRANSITIONS[item.transition].name : 'Fade';
+
+                // When cycle is on, FX/transition are auto-rotated — show a cycle badge instead
+                const cycled = !!(item.cycle && item.cycle.enabled);
+                const slideCount = cycled ? Math.max(1, Math.round(item.calcDuration / Math.max(0.4, item.cycle.seconds))) : 0;
+                const fxBadgesHtml = cycled
+                    ? `<span class="badge-mini bg-amber-500/20 text-amber-200 border border-amber-400/50">🔁 CYCLE · ${item.cycle.seconds.toFixed(1)}s × ${slideCount}</span>`
+                    : `<span class="badge-mini bg-violet-500/15 text-violet-300 border border-violet-500/30">${fName}</span>
+                       <span class="badge-mini bg-pink-500/15 text-pink-300 border border-pink-500/30">→ ${tName}</span>`;
+
+                el.innerHTML = `
+                    <div class="w-16 h-16 rounded-lg bg-slate-900 overflow-hidden shrink-0 relative border border-slate-600">
+                        ${thumbHtml}
+                        <div class="absolute bottom-0 right-0 bg-black/80 text-[9px] px-1 font-bold text-white">${item.type === 'video' ? 'VID' : 'IMG'}</div>
+                    </div>
+                    <div class="flex-1 min-w-0 pr-2">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <button onclick="openDurationModal('${item.id}')" class="text-[11px] font-semibold px-2 py-0.5 rounded ${timeBadgeClass} hover:brightness-125 transition active:scale-95 flex items-center gap-1 shadow-sm">
+                                ⏱️ <span class="font-mono">${item.calcDuration.toFixed(1)}s</span>
+                                <span class="text-[9px] opacity-60 ml-1">${timeLabel}</span>
+                            </button>
+                            ${fxBadgesHtml}
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            ${controlsHtml}
+                            <button onclick="deleteItem('${item.id}')" class="p-2 ml-auto text-slate-500 hover:text-red-400 active:bg-slate-700 rounded-lg transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="drag-handle p-3 shrink-0 flex items-center justify-center text-slate-500 hover:text-white cursor-grab active:cursor-grabbing h-full border-l border-slate-700 bg-slate-800/50 rounded-r-xl">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                    </div>`;
+                DOM.timeline.appendChild(el);
+            });
+            if (state.items.length === 0) DOM.emptyTimeline.classList.remove('hidden');
+        }
+
+        window.toggleMute = function(id){ const i=state.items.find(x=>x.id===id); if(i){i.mute=!i.mute;updateMath();renderTimelineUI();} };
+        window.toggleLoop = function(id){ const i=state.items.find(x=>x.id===id); if(i){i.loop=!i.loop;updateMath();renderTimelineUI();} };
+        window.toggleVideoFit = function(id){
+            const i=state.items.find(x=>x.id===id); if(!i) return;
+            i.fitMode = (i.fitMode === 'fit') ? 'fill' : 'fit';
+            if (i.fitMode === 'fit'){ i.zoom = 1; i.offX = 0; i.offY = 0; }
+            renderTimelineUI();
+            showToast(i.fitMode === 'fit' ? 'Showing the whole video' : 'Cropped to fill the frame');
+        };
+        window.deleteItem = function(id){ state.items=state.items.filter(x=>x.id!==id); updateMath(); renderTimelineUI(); };
+
+        // ---------------- Duration modal ----------------
+        let activeDurationItemId = null;
+        window.openDurationModal = function(id){
+            activeDurationItemId = id;
+            const item = state.items.find(i=>i.id===id); if(!item) return;
+            DOM.durationInput.value = item.customDuration !== null ? item.customDuration : item.calcDuration.toFixed(1);
+            DOM.durationModal.classList.remove('hidden'); DOM.durationModal.classList.add('flex');
+        };
+        window.closeDurationModal = function(){
+            DOM.durationModal.classList.add('hidden'); DOM.durationModal.classList.remove('flex');
+            activeDurationItemId = null;
+        };
+        window.saveDuration = function(isAuto){
+            const item = state.items.find(i=>i.id===activeDurationItemId); if(!item) return;
+            if (isAuto){ item.customDuration=null; showToast("Set to Auto-Fill"); }
+            else {
+                const v = parseFloat(DOM.durationInput.value);
+                if (isNaN(v) || v<=0){ showToast("Please enter a valid number"); return; }
+                item.customDuration=v; showToast(`Exact time locked to ${v}s`);
+            }
+            updateMath(); renderTimelineUI(); closeDurationModal();
+        };
+
+        // ---------------- FX modal (NEW) ----------------
+        let activeFxItemId = null, fxPick = { filter:'none', transition:'fade' };
+
+        window.openFxModal = function(id){
+            const item = state.items.find(i=>i.id===id); if(!item) return;
+            activeFxItemId = id;
+            fxPick.filter = item.filter || 'none';
+            fxPick.transition = item.transition || 'fade';
+
+            // Build filter tiles with live thumbnails of THIS item
+            const fg = document.getElementById('filterGrid'); fg.innerHTML='';
+            const src = item.type === 'image' ? item.domElement : item.domElement;
+            Object.keys(FILTERS).forEach(key => {
+                const tile = document.createElement('div');
+                tile.className = 'fx-tile' + (key===fxPick.filter?' sel':'');
+                tile.dataset.k = key;
+                const c = document.createElement('canvas');
+                c.width = 84; c.height = 150;
+                const cx = c.getContext('2d');
+                try {
+                    cx.fillStyle = '#000'; cx.fillRect(0,0,84,150);
+                    const iw = src.naturalWidth || src.videoWidth || 84;
+                    const ih = src.naturalHeight || src.videoHeight || 150;
+                    const s = Math.max(84/iw, 150/ih);
+                    cx.filter = FILTERS[key].css;
+                    cx.drawImage(src, (84-iw*s)/2, (150-ih*s)/2, iw*s, ih*s);
+                    cx.filter = 'none';
+                } catch(e){ cx.fillStyle='#334155'; cx.fillRect(0,0,84,150); }
+                c.style.width='100%'; c.style.display='block'; c.style.aspectRatio='84/150';
+                const lbl = document.createElement('div');
+                lbl.className='lbl'; lbl.textContent = FILTERS[key].name;
+                tile.appendChild(c); tile.appendChild(lbl);
+                tile.onclick = () => {
+                    fxPick.filter = key;
+                    [...fg.children].forEach(ch=>ch.classList.toggle('sel', ch.dataset.k===key));
+                };
+                fg.appendChild(tile);
+            });
+
+            // Build transition tiles
+            const tg = document.getElementById('transGrid'); tg.innerHTML='';
+            Object.keys(TRANSITIONS).forEach(key => {
+                const tile = document.createElement('div');
+                tile.className = 'fx-tile' + (key===fxPick.transition?' sel':'');
+                tile.dataset.k = key;
+                tile.innerHTML = `<div class="fx-tr"><span>${TRANSITIONS[key].icon}</span><span class="t">${TRANSITIONS[key].name}</span></div>`;
+                tile.onclick = () => {
+                    fxPick.transition = key;
+                    [...tg.children].forEach(ch=>ch.classList.toggle('sel', ch.dataset.k===key));
+                };
+                tg.appendChild(tile);
+            });
+
+            document.getElementById('fxModal').classList.remove('hidden');
+            document.getElementById('fxModal').classList.add('flex');
+        };
+        document.getElementById('cancelFxBtn').addEventListener('click', ()=>{
+            document.getElementById('fxModal').classList.add('hidden');
+            document.getElementById('fxModal').classList.remove('flex');
+            activeFxItemId = null;
+        });
+        document.getElementById('saveFxBtn').addEventListener('click', ()=>{
+            const item = state.items.find(i=>i.id===activeFxItemId);
+            if (item){ item.filter = fxPick.filter; item.transition = fxPick.transition; }
+            document.getElementById('fxModal').classList.add('hidden');
+            document.getElementById('fxModal').classList.remove('flex');
+            activeFxItemId = null;
+            renderTimelineUI();
+            showToast("FX applied!");
+        });
+
+        // ---------------- Cycle modal (NEW) ----------------
+        let activeCycleItemId = null;
+        const cycleModal     = document.getElementById('cycleModal');
+        const cycleSec       = document.getElementById('cycleSec');
+        const cycleSecTxt    = document.getElementById('cycleSecTxt');
+        const cycleTimeTxt   = document.getElementById('cycleTimeTxt');
+        const cycleCountTxt  = document.getElementById('cycleCountTxt');
+        const cycleComboStrip= document.getElementById('cycleComboStrip');
+
+        function fmtTime(s){ s=Math.max(0,s|0); return (s/60|0)+':'+String(s%60).padStart(2,'0'); }
+
+        function renderCyclePreview(){
+            const item = state.items.find(i=>i.id===activeCycleItemId); if(!item) return;
+            const sec = parseFloat(cycleSec.value);
+            cycleSecTxt.textContent = sec.toFixed(1)+'s';
+            const avail = item.calcDuration || 0;
+            cycleTimeTxt.textContent = fmtTime(avail);
+            const n = Math.max(1, Math.round(avail / Math.max(0.4, sec)));
+            cycleCountTxt.textContent = '~ ' + n + ' slides';
+
+            // Build sample combo strip (first ~14 combos of a shuffled sequence)
+            cycleComboStrip.innerHTML = '';
+            const fkeys = Object.keys(FILTERS);
+            const tkeys = Object.keys(TRANSITIONS).filter(k=>k!=='cut');
+            const combos = [];
+            for (const f of fkeys) for (const t of tkeys) combos.push({f,t});
+            // light shuffle (seeded by sec so it shifts as the user slides, fun feedback)
+            const seed = Math.floor(sec*10);
+            for (let i = combos.length - 1; i > 0; i--) {
+                const j = (seed * (i+7)) % (i+1);
+                [combos[i],combos[j]] = [combos[j],combos[i]];
+            }
+            const showN = Math.min(combos.length, Math.max(8, Math.min(n, 16)));
+            for (let i=0;i<showN;i++){
+                const c = combos[i];
+                const chip = document.createElement('div');
+                chip.className = 'flex-none flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-slate-800 border border-slate-700';
+                chip.innerHTML = `<div class="text-lg leading-none">${TRANSITIONS[c.t].icon}</div>
+                                  <div class="text-[9px] text-slate-300 mt-0.5 font-semibold">${FILTERS[c.f].name}</div>`;
+                cycleComboStrip.appendChild(chip);
+            }
+        }
+
+        window.openCycleModal = function(id){
+            const item = state.items.find(i=>i.id===id); if(!item) return;
+            if (item.type !== 'image'){ showToast("Cycle works on photos only"); return; }
+            activeCycleItemId = id;
+            const startSec = item.cycle?.seconds || 3;
+            cycleSec.value = startSec;
+            updateMath(); // make sure calcDuration reflects current state
+            renderCyclePreview();
+            cycleModal.classList.remove('hidden'); cycleModal.classList.add('flex');
+        };
+        cycleSec.addEventListener('input', renderCyclePreview);
+
+        document.getElementById('cycleSaveBtn').addEventListener('click', ()=>{
+            const item = state.items.find(i=>i.id===activeCycleItemId);
+            if (item){
+                item.cycle = { enabled: true, seconds: parseFloat(cycleSec.value) };
+                showToast(`Cycle on · ${item.cycle.seconds.toFixed(1)}s per slide`);
+            }
+            cycleModal.classList.add('hidden'); cycleModal.classList.remove('flex');
+            activeCycleItemId = null;
+            updateMath(); renderTimelineUI();
+        });
+        document.getElementById('cycleOffBtn').addEventListener('click', ()=>{
+            const item = state.items.find(i=>i.id===activeCycleItemId);
+            if (item){ item.cycle = null; showToast("Cycle turned off"); }
+            cycleModal.classList.add('hidden'); cycleModal.classList.remove('flex');
+            activeCycleItemId = null;
+            updateMath(); renderTimelineUI();
+        });
+        document.getElementById('cycleCancelBtn').addEventListener('click', ()=>{
+            cycleModal.classList.add('hidden'); cycleModal.classList.remove('flex');
+            activeCycleItemId = null;
+        });
+
+        // ---------------- Camera modal (live composite) ----------------
+        const cameraModal       = document.getElementById('cameraModal');
+        const cameraPreview     = document.getElementById('cameraPreview');   // hidden source <video>
+        const cameraCanvas      = document.getElementById('cameraCanvas');    // visible live composite
+        const camCtx            = cameraCanvas.getContext('2d');
+        const cameraReview      = document.getElementById('cameraReview');
+        const cameraRecordBtn   = document.getElementById('cameraRecordBtn');
+        const cameraRecordInner = document.getElementById('cameraRecordInner');
+        const cameraTimerEl     = document.getElementById('cameraTimer');
+        const cameraRecBadge    = document.getElementById('cameraRecBadge');
+        const cameraHint        = document.getElementById('cameraHint');
+        const cameraLiveControls   = document.getElementById('cameraLiveControls');
+        const cameraReviewControls = document.getElementById('cameraReviewControls');
+        const cameraEnableHint  = document.getElementById('cameraEnableHint');
+        const cameraQualityHint = document.getElementById('cameraQualityHint');
+        const cameraBgStrip     = document.getElementById('cameraBgStrip');
+        const cameraModeRow     = document.getElementById('cameraModeRow');
+        const cameraBgUpload    = document.getElementById('cameraBgUpload');
+        const modeCutoutBtn     = document.getElementById('modeCutoutBtn');
+        const modeBubbleBtn     = document.getElementById('modeBubbleBtn');
+        const modePhotoBtn      = document.getElementById('modePhotoBtn');
+        const cameraBubbleRow   = document.getElementById('cameraBubbleRow');
+        const bubbleSize        = document.getElementById('bubbleSize');
+        const bubbleSizeTxt     = document.getElementById('bubbleSizeTxt');
+
+        let camStream = null, camRecorder = null, camChunks = [];
+        let camFacing = 'user';
+        let camRecording = false;
+        let camTimerId = null, camStartedAt = 0, camRecordedSec = 0;
+        let camRecMime = '', camRecordedBlob = null;
+
+        // compositing state
+        let camActive = false, camRafId = null;
+        let camBg = { type: 'none', img: null };   // 'none' | 'photo'
+        let camMode = 'bubble';                     // 'cutout' | 'bubble' | 'photoonly' (when a bg is set)
+        let camBubble = { x: 0.5, y: 0.62, size: 0.55 }; // normalized position + size of the bubble
+        // offscreen canvas for the masked person
+        const personCanvas = document.createElement('canvas');
+        personCanvas.width = 720; personCanvas.height = 1280;
+        const pctx = personCanvas.getContext('2d');
+        // segmentation model
+        let selfieSeg = null, segReady = false, segInitTried = false, segBusy = false;
+
+        // ----- Camera audio: monitor the song + mix it cleanly into the recording -----
+        const cameraMusicBtn   = document.getElementById('cameraMusicBtn');
+        const cameraMusicLabel = document.getElementById('cameraMusicLabel');
+        const cameraMusicHint  = document.getElementById('cameraMusicHint');
+        const cameraMicBtn     = document.getElementById('cameraMicBtn');
+        const cameraMicLabel   = document.getElementById('cameraMicLabel');
+        let camMusicOn = false;
+        let micOn = true;
+        let camMusic = null;   // dedicated <audio> element for the song
+
+        // dedicated audio graph for the camera: lets us record song + mic cleanly
+        let camAC=null, camRecDest=null, camMusicSrc=null, camMusicGain=null, camMicSrc=null, camMicGain=null;
+
+        function ensureCamMusic(){
+            const src = DOM.masterAudioPlayer.currentSrc || DOM.masterAudioPlayer.src;
+            if (!src) return null;
+            if (!camMusic){ camMusic = new Audio(); camMusic.loop = true; camMusic.crossOrigin='anonymous'; }
+            if (camMusic.src !== src) camMusic.src = src;
+            return camMusic;
+        }
+        function ensureCamAudio(){
+            if (camAC) return camAC;
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                camAC = new AC();
+                camRecDest = camAC.createMediaStreamDestination();
+                camMusicGain = camAC.createGain(); camMusicGain.gain.value = 0;
+                camMicGain = camAC.createGain();   camMicGain.gain.value = micOn ? 1 : 0;
+                camMusicGain.connect(camRecDest);        // song into the recording
+                camMusicGain.connect(camAC.destination); // and out the speakers/headphones so you hear it
+                camMicGain.connect(camRecDest);          // mic into the recording only (no monitor = no feedback)
+            } catch(e){ camAC = null; }
+            return camAC;
+        }
+        function connectMusicSource(){
+            if (camAC && camMusic && !camMusicSrc){
+                try { camMusicSrc = camAC.createMediaElementSource(camMusic); camMusicSrc.connect(camMusicGain); } catch(e){}
+            }
+        }
+        function refreshMicSource(){
+            if (!camAC || !camStream) return;
+            if (camMicSrc){ try { camMicSrc.disconnect(); } catch(e){} camMicSrc = null; }
+            try { camMicSrc = camAC.createMediaStreamSource(camStream); camMicSrc.connect(camMicGain); } catch(e){}
+        }
+        function stopCamMusic(){ if (camMusic){ try { camMusic.pause(); } catch(e){} } if (camMusicGain) camMusicGain.gain.value = 0; }
+
+        function updateMusicBtn(){
+            cameraMusicLabel.textContent = 'Play my song while recording: ' + (camMusicOn ? 'ON' : 'OFF');
+            cameraMusicBtn.className = 'px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2 ' +
+                (camMusicOn ? 'bg-pink-600 border-pink-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-300');
+            cameraMusicHint.classList.toggle('hidden', !camMusicOn);
+        }
+        function updateMicBtn(){
+            cameraMicLabel.textContent = 'Mic: ' + (micOn ? 'ON (records your voice)' : 'OFF (no voice)');
+            cameraMicBtn.className = 'px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2 ' +
+                (micOn ? 'bg-green-600 border-green-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-300');
+        }
+
+        cameraMusicBtn.addEventListener('click', ()=>{
+            if (!camMusicOn){
+                const m = ensureCamMusic();
+                if (!m){ showToast('Upload your song first (Music tab).'); return; }
+                ensureCamAudio(); connectMusicSource();
+                if (camAC && camAC.state === 'suspended') camAC.resume();
+                camMusicOn = true; updateMusicBtn();
+                if (camMusicGain) camMusicGain.gain.value = 1;
+                try { m.currentTime = 0; m.play(); } catch(e){}   // rehearsal playback
+            } else {
+                camMusicOn = false; updateMusicBtn(); stopCamMusic();
+            }
+        });
+        cameraMicBtn.addEventListener('click', ()=>{
+            micOn = !micOn; updateMicBtn();
+            if (camMicGain) camMicGain.gain.value = micOn ? 1 : 0;
+        });
+
+        function pickCamMime(){
+            const cands = [
+                'video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/mp4',
+                'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'
+            ];
+            for (const m of cands) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+            return '';
+        }
+
+        function drawCover(ctx, src, sw, sh, W, H){
+            if (!sw || !sh) return;
+            const s = Math.max(W/sw, H/sh);
+            const dw = sw*s, dh = sh*s;
+            ctx.drawImage(src, (W-dw)/2, (H-dh)/2, dw, dh);
+        }
+        function drawCamBackground(ctx){
+            const W = cameraCanvas.width, H = cameraCanvas.height;
+            if (camBg.type === 'photo' && camBg.img && (camBg.img.complete || camBg.img.naturalWidth)){
+                drawCover(ctx, camBg.img, camBg.img.naturalWidth || camBg.img.width,
+                                          camBg.img.naturalHeight || camBg.img.height, W, H);
+            } else {
+                ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,W,H);
+            }
+        }
+        function drawBubble(ctx, v){
+            const W = cameraCanvas.width, H = cameraCanvas.height;
+            const d = Math.min(W, H) * camBubble.size;
+            const cx = camBubble.x * W, cy = camBubble.y * H;
+            ctx.save();
+            ctx.beginPath(); ctx.arc(cx, cy, d/2, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+            const s = Math.max(d/v.videoWidth, d/v.videoHeight);
+            const dw = v.videoWidth*s, dh = v.videoHeight*s;
+            ctx.drawImage(v, cx-dw/2, cy-dh/2, dw, dh);
+            ctx.restore();
+            // soft shadow + ring so it reads clearly over any art
+            ctx.save();
+            ctx.beginPath(); ctx.arc(cx, cy, d/2, 0, Math.PI*2);
+            ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 18;
+            ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.stroke();
+            ctx.restore();
+        }
+        // simple (non-AI) drawing: plain selfie, background + bubble, or photo only
+        function drawSimple(){
+            const ctx = camCtx, W = cameraCanvas.width, H = cameraCanvas.height;
+            const v = cameraPreview;
+            if (camBg.type === 'none'){
+                if (v.videoWidth) drawCover(ctx, v, v.videoWidth, v.videoHeight, W, H);
+                else { ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,H); }
+            } else {
+                drawCamBackground(ctx);
+                if (camMode === 'bubble' && v.videoWidth) drawBubble(ctx, v);
+                // camMode === 'photoonly' -> just the cover art (voice still records)
+            }
+        }
+        // AI cutout composite (called by MediaPipe each result)
+        function onSegResults(results){
+            const ctx = camCtx, W = cameraCanvas.width, H = cameraCanvas.height;
+            const img = results.image;
+            const iw = img.width, ih = img.height;
+            const s = Math.max(W/iw, H/ih);
+            const dw = iw*s, dh = ih*s, dx = (W-dw)/2, dy = (H-dh)/2;
+            // build masked person on the offscreen canvas
+            pctx.clearRect(0,0,W,H);
+            pctx.save();
+            pctx.drawImage(results.segmentationMask, dx, dy, dw, dh);
+            pctx.globalCompositeOperation = 'source-in';
+            pctx.drawImage(img, dx, dy, dw, dh);
+            pctx.restore();
+            pctx.globalCompositeOperation = 'source-over';
+            // main canvas: background, then the cut-out person on top
+            drawCamBackground(ctx);
+            ctx.drawImage(personCanvas, 0, 0);
+        }
+
+        function camLoop(){
+            if (!camActive) return;
+            const useCutout = (camBg.type === 'photo' && camMode === 'cutout' && segReady);
+            if (useCutout){
+                if (!segBusy && cameraPreview.videoWidth){
+                    segBusy = true;
+                    selfieSeg.send({ image: cameraPreview })
+                        .then(()=>{ segBusy = false; })
+                        .catch(()=>{ segBusy = false; });
+                }
+            } else {
+                drawSimple();
+            }
+            camRafId = requestAnimationFrame(camLoop);
+        }
+
+        async function initSeg(){
+            if (segReady || segInitTried) return;
+            segInitTried = true;
+            cameraEnableHint.textContent = 'Loading background AI…';
+            cameraEnableHint.classList.remove('hidden');
+            if (window.__segScriptFailed || typeof SelfieSegmentation === 'undefined'){
+                showToast('Background AI unavailable — using Bubble mode');
+                camMode = 'bubble'; updateModeUI(); cameraEnableHint.classList.add('hidden');
+                return;
+            }
+            try {
+                selfieSeg = new SelfieSegmentation({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
+                selfieSeg.setOptions({ modelSelection: 1, selfieMode: true });
+                selfieSeg.onResults(onSegResults);
+                // warm up
+                if (cameraPreview.videoWidth) { try { await selfieSeg.send({ image: cameraPreview }); } catch(e){} }
+                segReady = true;
+                cameraEnableHint.classList.add('hidden');
+                showToast('Background replace ready — move around!');
+            } catch (e){
+                showToast('Background AI failed — using Bubble mode');
+                camMode = 'bubble'; updateModeUI(); cameraEnableHint.classList.add('hidden');
+            }
+        }
+
+        function updateModeUI(){
+            const base = 'flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95 ';
+            const on  = 'bg-cyan-500 text-black border-cyan-400';
+            const off = 'bg-slate-800 text-slate-300 border-slate-700';
+            modeCutoutBtn.className = base + (camMode==='cutout'?on:off);
+            modeBubbleBtn.className = base + (camMode==='bubble'?on:off);
+            modePhotoBtn.className  = base + (camMode==='photoonly'?on:off);
+            // bubble size/drag controls only matter in bubble mode
+            const showBubble = (camBg.type==='photo' && camMode==='bubble');
+            cameraBubbleRow.classList.toggle('hidden', !showBubble);
+            cameraBubbleRow.classList.toggle('flex', showBubble);
+        }
+
+        function setCamBg(type, img){
+            camBg = { type, img: img || null };
+            const showModes = (type === 'photo');
+            cameraModeRow.classList.toggle('hidden', !showModes);
+            cameraModeRow.classList.toggle('flex', showModes);
+            if (type === 'photo' && camMode === 'cutout') initSeg();
+            updateModeUI();
+            buildBgStrip();
+        }
+
+        function bgTile(opts){
+            // opts: {label, selected, onClick, bgImageUrl, icon}
+            const b = document.createElement('button');
+            b.className = 'flex-none w-14 h-20 rounded-lg overflow-hidden border-2 transition active:scale-95 relative ' +
+                (opts.selected ? 'border-cyan-400' : 'border-slate-700');
+            if (opts.bgImageUrl){
+                b.style.backgroundImage = `url(${opts.bgImageUrl})`;
+                b.style.backgroundSize = 'cover'; b.style.backgroundPosition = 'center';
+            } else {
+                b.classList.add('bg-slate-800','flex','items-center','justify-center');
+                b.innerHTML = `<span class="text-lg">${opts.icon||''}</span>`;
+            }
+            if (opts.label){
+                const l = document.createElement('span');
+                l.className = 'absolute bottom-0 left-0 right-0 text-[9px] font-semibold text-white bg-black/70 py-0.5 text-center';
+                l.textContent = opts.label;
+                b.appendChild(l);
+            }
+            b.onclick = opts.onClick;
+            return b;
+        }
+
+        function buildBgStrip(){
+            cameraBgStrip.innerHTML = '';
+            // None
+            cameraBgStrip.appendChild(bgTile({
+                label:'None', icon:'🚫', selected: camBg.type==='none',
+                onClick: ()=> setCamBg('none', null)
+            }));
+            // timeline photos
+            state.items.filter(i=>i.type==='image').forEach(it=>{
+                cameraBgStrip.appendChild(bgTile({
+                    bgImageUrl: it.url, selected: camBg.type==='photo' && camBg.img===it.domElement,
+                    onClick: ()=> setCamBg('photo', it.domElement)
+                }));
+            });
+            // upload new
+            cameraBgStrip.appendChild(bgTile({
+                label:'Upload', icon:'＋', selected:false,
+                onClick: ()=> cameraBgUpload.click()
+            }));
+        }
+
+        cameraBgUpload.addEventListener('change', e=>{
+            const f = e.target.files[0]; if(!f) return;
+            const img = new Image();
+            img.onload = ()=> setCamBg('photo', img);
+            img.src = URL.createObjectURL(f);
+            cameraBgUpload.value = '';
+        });
+        modeCutoutBtn.addEventListener('click', ()=>{ camMode='cutout'; updateModeUI(); initSeg(); });
+        modeBubbleBtn.addEventListener('click', ()=>{ camMode='bubble'; updateModeUI(); });
+        modePhotoBtn.addEventListener('click', ()=>{ camMode='photoonly'; updateModeUI(); });
+
+        // bubble size
+        bubbleSize.addEventListener('input', e=>{
+            camBubble.size = parseFloat(e.target.value);
+            bubbleSizeTxt.textContent = Math.round(camBubble.size*100) + '%';
+            clampBubble();
+        });
+
+        // keep the bubble fully on screen
+        function clampBubble(){
+            const W = cameraCanvas.width, H = cameraCanvas.height;
+            const rx = (Math.min(W,H)*camBubble.size/2)/W;
+            const ry = (Math.min(W,H)*camBubble.size/2)/H;
+            camBubble.x = Math.max(rx, Math.min(1-rx, camBubble.x));
+            camBubble.y = Math.max(ry, Math.min(1-ry, camBubble.y));
+        }
+
+        // drag the bubble around the live preview
+        let bubbleDragging = false;
+        function evtToNorm(e){
+            const r = cameraCanvas.getBoundingClientRect();
+            return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height };
+        }
+        cameraCanvas.addEventListener('pointerdown', e=>{
+            if (!(camBg.type==='photo' && camMode==='bubble')) return;
+            const W = cameraCanvas.width, H = cameraCanvas.height;
+            const p = evtToNorm(e);
+            const px = p.x*W, py = p.y*H;
+            const bx = camBubble.x*W, by = camBubble.y*H;
+            const rad = Math.min(W,H)*camBubble.size/2;
+            if (Math.hypot(px-bx, py-by) <= rad*1.25){
+                bubbleDragging = true;
+                try { cameraCanvas.setPointerCapture(e.pointerId); } catch(_){}
+            }
+        });
+        cameraCanvas.addEventListener('pointermove', e=>{
+            if (!bubbleDragging) return;
+            const p = evtToNorm(e);
+            camBubble.x = p.x; camBubble.y = p.y;
+            clampBubble();
+        });
+        function endBubbleDrag(e){ bubbleDragging=false; try{ cameraCanvas.releasePointerCapture(e.pointerId);}catch(_){}}
+        cameraCanvas.addEventListener('pointerup', endBubbleDrag);
+        cameraCanvas.addEventListener('pointercancel', endBubbleDrag);
+
+        async function startCameraStream(){
+            try {
+                if (camStream) camStream.getTracks().forEach(t => t.stop());
+                camStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+                cameraPreview.srcObject = camStream;
+                await cameraPreview.play().catch(()=>{});
+                cameraEnableHint.classList.add('hidden');
+                const vt = camStream.getVideoTracks()[0];
+                if (vt){ const s = vt.getSettings(); cameraQualityHint.textContent = (s.width||'?')+'×'+(s.height||'?'); }
+                camActive = true;
+                ensureCamAudio(); refreshMicSource();
+                cancelAnimationFrame(camRafId);
+                camLoop();
+            } catch (err){
+                cameraEnableHint.textContent = "Couldn't access camera. Allow camera & microphone in your browser, then reopen.";
+                cameraEnableHint.classList.remove('hidden');
+            }
+        }
+
+        function openCamera(){
+            cameraModal.classList.remove('hidden');
+            cameraModal.classList.add('flex');
+            camRecording = false; camRecordedBlob = null; camRecordedSec = 0;
+            camMusicOn = false; updateMusicBtn(); stopCamMusic();
+            micOn = true; updateMicBtn();
+            camBg = { type:'none', img:null };
+            camMode = 'bubble';
+            camBubble = { x: 0.5, y: 0.62, size: 0.55 };
+            bubbleSize.value = 0.55; bubbleSizeTxt.textContent = '55%';
+            updateModeUI();
+            cameraModeRow.classList.add('hidden'); cameraModeRow.classList.remove('flex');
+            cameraBubbleRow.classList.add('hidden'); cameraBubbleRow.classList.remove('flex');
+            cameraTimerEl.textContent = '0:00';
+            cameraHint.textContent = 'Pick a background photo above, then tap the red button to record.';
+            cameraRecordInner.className = 'w-16 h-16 rounded-full bg-red-500 transition-all';
+            cameraRecBadge.classList.add('hidden');
+            cameraLiveControls.classList.remove('hidden'); cameraLiveControls.classList.add('flex');
+            cameraReviewControls.classList.add('hidden'); cameraReviewControls.classList.remove('flex');
+            cameraCanvas.classList.remove('hidden');
+            cameraReview.classList.add('hidden');
+            cameraEnableHint.textContent = 'Loading camera…';
+            cameraEnableHint.classList.remove('hidden');
+            buildBgStrip();
+            startCameraStream();
+        }
+
+        function closeCamera(){
+            if (camRecording) stopRecording(true);
+            stopCamMusic(); camMusicOn = false; updateMusicBtn();
+            camActive = false;
+            cancelAnimationFrame(camRafId); camRafId = null;
+            if (camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+            cameraPreview.srcObject = null;
+            if (cameraReview.src){ try { URL.revokeObjectURL(cameraReview.src); } catch(e){} cameraReview.removeAttribute('src'); try{cameraReview.load();}catch(e){} }
+            cameraModal.classList.add('hidden'); cameraModal.classList.remove('flex');
+            clearInterval(camTimerId);
+        }
+
+        function startRecording(){
+            if (!camStream) return;
+            camChunks = [];
+            camRecMime = pickCamMime();
+            // record the COMPOSITE canvas video + a cleanly mixed audio track
+            const canvasStream = cameraCanvas.captureStream(30);
+            const tracks = [...canvasStream.getVideoTracks()];
+
+            // Build the audio: clean song (if on) + mic (if on), mixed via Web Audio.
+            ensureCamAudio();
+            let usedGraph = false;
+            if (camAC){
+                if (camAC.state === 'suspended') { try { camAC.resume(); } catch(e){} }
+                if (camMusicOn) { ensureCamMusic(); connectMusicSource(); }
+                refreshMicSource();
+                if (camMicGain)   camMicGain.gain.value   = micOn ? 1 : 0;
+                if (camMusicGain) camMusicGain.gain.value = camMusicOn ? 1 : 0;
+                const a = camRecDest.stream.getAudioTracks()[0];
+                if (a){ tracks.push(a); usedGraph = true; }
+            }
+            if (!usedGraph){
+                // fallback: raw mic track, honoring the mic toggle
+                const aud = camStream.getAudioTracks();
+                if (aud[0]){ aud[0].enabled = micOn; tracks.push(aud[0]); }
+            }
+
+            const mixed = new MediaStream(tracks);
+            try {
+                camRecorder = new MediaRecorder(mixed, camRecMime
+                    ? { mimeType: camRecMime, videoBitsPerSecond: 6_000_000 }
+                    : { videoBitsPerSecond: 6_000_000 });
+            } catch(e){ showToast("Recording not supported in this browser."); return; }
+            camRecorder.ondataavailable = e => { if (e.data.size > 0) camChunks.push(e.data); };
+            camRecorder.onstop = () => {
+                camRecordedBlob = new Blob(camChunks, { type: camRecMime || 'video/webm' });
+                showReview();
+            };
+            camRecorder.start();
+            camRecording = true;
+            camStartedAt = performance.now();
+            // sync the song to the take: restart from the top so your lip-sync lines up
+            if (camMusicOn){ const m = ensureCamMusic(); if (m){ try { m.currentTime = 0; m.play(); } catch(e){} } }
+            cameraRecBadge.classList.remove('hidden');
+            cameraRecordInner.className = 'w-8 h-8 rounded-md bg-red-500 transition-all';
+            cameraHint.textContent = 'Recording… tap the button again to stop.';
+            clearInterval(camTimerId);
+            camTimerId = setInterval(()=>{
+                const s = Math.floor((performance.now() - camStartedAt) / 1000);
+                cameraTimerEl.textContent = (s/60|0) + ':' + String(s%60).padStart(2,'0');
+            }, 250);
+        }
+
+        function stopRecording(){
+            if (!camRecording) return;
+            camRecording = false;
+            camRecordedSec = (performance.now() - camStartedAt) / 1000;
+            stopCamMusic();
+            try { if (camRecorder && camRecorder.state === 'recording') camRecorder.stop(); } catch(e){}
+            clearInterval(camTimerId);
+            cameraRecBadge.classList.add('hidden');
+            cameraRecordInner.className = 'w-16 h-16 rounded-full bg-red-500 transition-all';
+        }
+
+        function showReview(){
+            if (!camRecordedBlob) return;
+            const url = URL.createObjectURL(camRecordedBlob);
+            cameraReview.src = url; cameraReview.muted = false; cameraReview.loop = true;
+            cameraReview.classList.remove('hidden');
+            cameraCanvas.classList.add('hidden');
+            try { cameraReview.play(); } catch(e){}
+            cameraLiveControls.classList.add('hidden'); cameraLiveControls.classList.remove('flex');
+            cameraReviewControls.classList.remove('hidden'); cameraReviewControls.classList.add('flex');
+            cameraHint.textContent = 'Like it? "Use this take" adds it (background baked in) to your timeline.';
+        }
+
+        async function useRecording(){
+            if (!camRecordedBlob) return;
+            const ext = (camRecMime && camRecMime.includes('mp4')) ? 'mp4' : 'webm';
+            const file = new File([camRecordedBlob], `camera-${Date.now()}.${ext}`, { type: camRecMime || 'video/webm' });
+            const dur = camRecordedSec > 0.3 ? camRecordedSec : 5;
+            closeCamera();
+            await addMediaFile(file, { knownDuration: dur, defaultMute: false, fromCamera: true });
+            updateMath(); renderTimelineUI();
+            showToast(`Added your ${dur.toFixed(1)}s clip!`);
+        }
+
+        function retake(){
+            try { cameraReview.pause(); cameraReview.removeAttribute('src'); cameraReview.load(); } catch(e){}
+            cameraReview.classList.add('hidden');
+            cameraCanvas.classList.remove('hidden');
+            cameraLiveControls.classList.remove('hidden'); cameraLiveControls.classList.add('flex');
+            cameraReviewControls.classList.add('hidden'); cameraReviewControls.classList.remove('flex');
+            cameraHint.textContent = 'Tap the red button to start recording.';
+            cameraTimerEl.textContent = '0:00';
+            camRecordedBlob = null; camRecordedSec = 0;
+        }
+
+        document.getElementById('openCameraBtn').addEventListener('click', openCamera);
+        document.getElementById('cameraCloseBtn').addEventListener('click', closeCamera);
+        document.getElementById('cameraRetakeBtn').addEventListener('click', retake);
+        document.getElementById('cameraUseBtn').addEventListener('click', useRecording);
+        cameraRecordBtn.addEventListener('click', ()=>{ if (camRecording) stopRecording(); else startRecording(); });
+        document.getElementById('cameraFlipBtn').addEventListener('click', async ()=>{
+            if (camRecording) return;
+            camFacing = (camFacing === 'user') ? 'environment' : 'user';
+            await startCameraStream();
+        });
+
+        // ---------------- Persistent audio graph (fixes re-render crash) ----------------
+        let AG = null; // { ctx, dest, masterGain, masterConnected }
+        function ensureAudioGraph() {
+            if (!AG) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AC();
+                const dest = ctx.createMediaStreamDestination();
+                const masterGain = ctx.createGain();
+                masterGain.gain.value = 1;
+                let masterSrc;
+                try { masterSrc = ctx.createMediaElementSource(DOM.masterAudioPlayer); }
+                catch(e){ masterSrc = null; }
+                if (masterSrc) {
+                    masterSrc.connect(masterGain);
+                    masterGain.connect(dest);
+                    masterGain.connect(ctx.destination);
+                }
+                AG = { ctx, dest, masterGain, masterSrc };
+            }
+            return AG;
+        }
+        function ensureVideoAudio(item) {
+            if (!AG) return;
+            if (item.type !== 'video') return;
+            if (!item._gain) {
+                try {
+                    const src = AG.ctx.createMediaElementSource(item.domElement);
+                    const g = AG.ctx.createGain();
+                    src.connect(g);
+                    g.connect(AG.dest);
+                    g.connect(AG.ctx.destination);
+                    item._src = src; item._gain = g;
+                } catch(e){ /* already wired or unsupported */ }
+            }
+            if (item._gain) item._gain.gain.value = item.mute ? 0 : 1;
+        }
+
+        // ---------------- Render engine (rewritten) ----------------
+        let animationFrameId = null, mediaRecorder = null, recordedChunks = [];
+        const glitchCanvas = document.createElement('canvas');
+        glitchCanvas.width = 720; glitchCanvas.height = 1280;
+        const gctx = glitchCanvas.getContext('2d');
+
+        // UNIFIED framing model — used by BOTH the crop preview and the final
+        // export, so what you see is exactly what you get. Returns where to
+        // draw the iw x ih image inside an FW x FH frame.
+        function frameDraw(iw, ih, FW, FH, mode, zoom, offX, offY, kb) {
+            const base = (mode === 'fit')
+                ? Math.min(FW / iw, FH / ih)   // contain — whole photo visible
+                : Math.max(FW / iw, FH / ih);  // cover  — fills the frame
+            const scale = base * (zoom || 1) * (kb || 1);
+            const dw = iw * scale, dh = ih * scale;
+            const slackX = dw - FW, slackY = dh - FH;
+            let dx, dy;
+            if (mode === 'fit') {
+                // photo may be smaller than the frame; let the user slide it
+                // anywhere within +/- half a frame so it's never stuck
+                dx = (FW - dw) / 2 + (offX || 0) * (FW / 2);
+                dy = (FH - dh) / 2 + (offY || 0) * (FH / 2);
+            } else {
+                dx = (FW - dw) / 2 + (offX || 0) * (slackX / 2);
+                dy = (FH - dh) / 2 + (offY || 0) * (slackY / 2);
+                // clamp so the frame is ALWAYS fully covered (no black bars)
+                dx = Math.min(0, Math.max(FW - dw, dx));
+                dy = Math.min(0, Math.max(FH - dh, dy));
+            }
+            return { scale, dw, dh, dx, dy, slackX, slackY };
+        }
+
+        function mediaSize(item) {
+            const el = item.domElement;
+            return {
+                iw: el.naturalWidth || el.videoWidth || 1080,
+                ih: el.naturalHeight || el.videoHeight || 1920
+            };
+        }
+
+        function drawMedia(ctx, item, localSec, dur, filterKey) {
+            const w = DOM.renderCanvas.width, h = DOM.renderCanvas.height;
+            const { iw, ih } = mediaSize(item);
+            const mode = item.fitMode || 'fill';
+            // gentle Ken Burns only in Fill mode (Fit keeps the whole photo steady)
+            const kb = (item.type === 'image' && mode === 'fill')
+                ? 1 + Math.min(1, localSec / Math.max(0.1, dur)) * 0.15 : 1;
+
+            if (mode === 'fit') {
+                // blurred, dimmed cover behind the contained photo (inShot look)
+                const bg = frameDraw(iw, ih, w, h, 'fill', 1, 0, 0, 1);
+                ctx.save();
+                ctx.filter = 'blur(26px) brightness(0.45)';
+                ctx.drawImage(item.domElement, bg.dx, bg.dy, bg.dw, bg.dh);
+                ctx.restore();
+            }
+
+            const d = frameDraw(iw, ih, w, h, mode, item.zoom, item.offX, item.offY, kb);
+            const fk = filterKey || item.filter || 'none';
+            ctx.filter = (FILTERS[fk] && FILTERS[fk].css) || 'none';
+            ctx.drawImage(item.domElement, d.dx, d.dy, d.dw, d.dh);
+            ctx.filter = 'none';
+        }
+
+        function drawIncoming(ctx, type, p, inItem, inDur, filterKey) {
+            const w = DOM.renderCanvas.width, h = DOM.renderCanvas.height;
+            ctx.save();
+            if (type === 'fade' || type === 'flash') {
+                ctx.globalAlpha = p; drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else if (type === 'slide') {
+                ctx.translate((1-p)*w, 0); drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else if (type === 'slideup') {
+                ctx.translate(0, (1-p)*h); drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else if (type === 'wipe') {
+                ctx.beginPath(); ctx.rect(0,0,w*p,h); ctx.clip(); drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else if (type === 'zoom') {
+                const sc = 1.6 - 0.6*p; ctx.globalAlpha = p;
+                ctx.translate(w/2,h/2); ctx.scale(sc,sc); ctx.translate(-w/2,-h/2);
+                drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else if (type === 'spin') {
+                const sc = 0.4 + 0.6*p, ang = (1-p)*0.7; ctx.globalAlpha = p;
+                ctx.translate(w/2,h/2); ctx.rotate(ang); ctx.scale(sc,sc); ctx.translate(-w/2,-h/2);
+                drawMedia(ctx, inItem, 0, inDur, filterKey);
+            } else {
+                drawMedia(ctx, inItem, 0, inDur, filterKey);
+            }
+            ctx.restore();
+        }
+
+        // Build a flat list of "render segments" — expands cycled items into
+        // many sub-clips, each tagged with its own filter + transition combo.
+        function buildSegments() {
+            const filterKeys = Object.keys(FILTERS);
+            const transKeys = Object.keys(TRANSITIONS).filter(k => k !== 'cut'); // keep all slides animated
+            const COMBOS = [];
+            for (const f of filterKeys) for (const t of transKeys) COMBOS.push({ f, t });
+            // Fisher–Yates shuffle for max variety
+            for (let i = COMBOS.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [COMBOS[i], COMBOS[j]] = [COMBOS[j], COMBOS[i]];
+            }
+
+            const segs = [];
+            let cIdx = 0;
+            state.items.forEach(item => {
+                if (item.cycle?.enabled && item.type === 'image') {
+                    const per = Math.max(0.4, item.cycle.seconds || 3);
+                    const n   = Math.max(1, Math.round((item.calcDuration || per) / per));
+                    const dur = (item.calcDuration || (n * per)) / n;
+                    let lastFilter = null;
+                    for (let i = 0; i < n; i++) {
+                        let c = COMBOS[cIdx % COMBOS.length]; cIdx++;
+                        // avoid repeating the same filter twice in a row (rare but cleaner)
+                        if (c.f === lastFilter) { c = COMBOS[cIdx % COMBOS.length]; cIdx++; }
+                        lastFilter = c.f;
+                        segs.push({ item, filter: c.f, transition: c.t, dur, cycled: true });
+                    }
+                } else {
+                    segs.push({
+                        item,
+                        filter: item.filter || 'none',
+                        transition: item.transition || 'fade',
+                        dur: item.calcDuration,
+                        cycled: false
+                    });
+                }
+            });
+            return segs;
+        }
+
+        function drawGlitch(ctx, p) {
+            const w = DOM.renderCanvas.width, h = DOM.renderCanvas.height;
+            const bands = 8, amp = (1-p) * w * 0.09;
+            for (let b=0;b<bands;b++){
+                const by = h/bands*b, bh = h/bands + 2;
+                const off = (Math.random()*2-1)*amp;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1-p);
+                ctx.drawImage(glitchCanvas, 0, by, w, bh, off, by, w, bh);
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = Math.max(0, (1-p)*0.35);
+                ctx.drawImage(glitchCanvas, 0, by, w, bh, off+7, by, w, bh);
+                ctx.restore();
+            }
+        }
+
+        DOM.renderBtn.addEventListener('click', async () => {
+            if (!state.audioFile) return showToast("Upload your Master Audio first!");
+            if (state.items.length === 0) return showToast("Add photos or videos to the timeline!");
+
+            DOM.renderOverlay.classList.remove('hidden');
+            DOM.renderOverlay.classList.add('flex');
+            state.isRendering = true;
+            DOM.renderProgress.style.width = '0%';
+            recordedChunks = [];
+
+            const canvas = DOM.renderCanvas;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) { showToast("Your browser does not support audio mixing."); return; }
+
+            const ag = ensureAudioGraph();
+            if (ag.ctx.state === 'suspended') { try { await ag.ctx.resume(); } catch(e){} }
+            state.items.forEach(it => { if (it.type === 'video') ensureVideoAudio(it); });
+
+            const canvasStream = canvas.captureStream(30);
+            const combined = new MediaStream([
+                ...canvasStream.getVideoTracks(),
+                ...ag.dest.stream.getAudioTracks()
+            ]);
+
+            const types = [
+                'video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/mp4',
+                'video/webm;codecs=h264,opus','video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus','video/webm'
+            ];
+            let mime = '';
+            for (let t of types) { if (MediaRecorder.isTypeSupported(t)) { mime = t; break; } }
+
+            mediaRecorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8000000 });
+            mediaRecorder.ondataavailable = e => { if (e.data.size>0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: mime || 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Storybook_${Date.now()}.${(mime.includes('mp4')?'mp4':'webm')}`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(()=>URL.revokeObjectURL(url), 4000);
+                DOM.renderOverlay.classList.add('hidden');
+                DOM.renderOverlay.classList.remove('flex');
+                state.isRendering = false;
+            };
+
+            // Build flat segment list (cycled items expand into many sub-clips)
+            // then turn segments into a timeline schedule.
+            const segs = buildSegments();
+            let acc = 0;
+            const tl = segs.map(s => {
+                const d = Math.max(0.2, s.dur || 0.2);
+                const e = { item: s.item, filter: s.filter, transition: s.transition,
+                            cycled: s.cycled, start: acc, dur: d };
+                acc += d; e.end = acc; return e;
+            });
+            const total = acc;
+
+            // reset video state
+            state.items.forEach(it => {
+                it._started = false;
+                if (it.type === 'video') { try { it.domElement.pause(); it.domElement.currentTime = 0; } catch(e){} }
+            });
+
+            mediaRecorder.start();
+            DOM.masterAudioPlayer.currentTime = 0;
+            try { await DOM.masterAudioPlayer.play(); }
+            catch(err){ try { await ag.ctx.resume(); DOM.masterAudioPlayer.play(); } catch(e){} }
+
+            let lastIdx = -1;
+
+            function findIndex(t) {
+                for (let i=0;i<tl.length;i++) if (t >= tl[i].start && t < tl[i].end) return i;
+                return tl.length-1;
+            }
+
+            function manageVideo(entry, makeActive) {
+                const it = entry.item;
+                if (it.type !== 'video') return;
+                const v = it.domElement;
+                if (makeActive) {
+                    if (!it._started) { try { v.currentTime = 0; v.play().catch(()=>{}); } catch(e){} it._started = true; }
+                    if (it.loop && (v.ended || v.currentTime >= (v.duration||1e9) - 0.08)) {
+                        try { v.currentTime = 0; v.play().catch(()=>{}); } catch(e){}
+                    }
+                } 
+            }
+
+            function frame() {
+                if (!state.isRendering) return;
+                const t = DOM.masterAudioPlayer.currentTime;
+
+                const pct = Math.min(100, (t / Math.min(total, state.audioDuration)) * 100);
+                DOM.renderProgress.style.width = pct + '%';
+
+                if (DOM.masterAudioPlayer.ended || t >= state.audioDuration - 0.03 || t >= total - 0.01) {
+                    finish(); return;
+                }
+
+                const i = findIndex(t);
+                const cur = tl[i];
+                const localSec = t - cur.start;
+
+                // Duck the master song while an unmuted camera clip plays, so its own
+                // in-sync audio is heard cleanly instead of doubling with the master.
+                if (AG && AG.masterGain){
+                    const duck = (cur.item.fromCamera && !cur.item.mute);
+                    AG.masterGain.gain.value = duck ? 0 : 1;
+                }
+
+                // pause videos that aren't current/incoming (compare by item id, not index)
+                if (i !== lastIdx) {
+                    const activeIds = new Set([cur.item.id]);
+                    if (i+1 < tl.length) activeIds.add(tl[i+1].item.id);
+                    state.items.forEach(it => {
+                        if (it.type === 'video' && !activeIds.has(it.id)) {
+                            try { it.domElement.pause(); } catch(e){}
+                        }
+                    });
+                    lastIdx = i;
+                }
+
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0,0,w,h);
+
+                manageVideo(cur, true);
+
+                // transition window
+                let td = 0;
+                const hasNext = i < tl.length - 1;
+                const transType = cur.transition || 'fade';
+                if (hasNext && transType !== 'cut') {
+                    td = Math.min(state.transDur, cur.dur*0.5, tl[i+1].dur*0.5);
+                    td = Math.max(0.08, td);
+                }
+
+                const inTransition = hasNext && td > 0 && localSec > (cur.dur - td);
+
+                if (inTransition) {
+                    const p = Math.min(1, Math.max(0, (localSec - (cur.dur - td)) / td));
+                    const inEntry = tl[i+1];
+                    // warm up incoming video so its frame is live
+                    manageVideo(inEntry, true);
+
+                    // outgoing full
+                    ctx.globalAlpha = 1;
+                    drawMedia(ctx, cur.item, localSec, cur.dur, cur.filter);
+
+                    if (transType === 'glitch') {
+                        gctx.clearRect(0,0,w,h);
+                        gctx.drawImage(canvas, 0, 0);
+                    }
+
+                    drawIncoming(ctx, transType, p, inEntry.item, inEntry.dur, inEntry.filter);
+
+                    if (transType === 'flash') {
+                        ctx.save();
+                        ctx.globalAlpha = Math.sin(p*Math.PI);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0,0,w,h);
+                        ctx.restore();
+                    } else if (transType === 'glitch') {
+                        drawGlitch(ctx, p);
+                    }
+                } else {
+                    ctx.globalAlpha = 1;
+                    drawMedia(ctx, cur.item, localSec, cur.dur, cur.filter);
+                }
+
+                ctx.globalAlpha = 1;
+                animationFrameId = requestAnimationFrame(frame);
+            }
+
+            function finish() {
+                state.isRendering = false;
+                try { DOM.masterAudioPlayer.pause(); } catch(e){}
+                state.items.forEach(it => { if (it.type==='video') { try{it.domElement.pause();}catch(e){} } });
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            animationFrameId = requestAnimationFrame(frame);
+        });
+
+        DOM.cancelRenderBtn.addEventListener('click', () => {
+            state.isRendering = false;
+            cancelAnimationFrame(animationFrameId);
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            try { DOM.masterAudioPlayer.pause(); } catch(e){}
+            state.items.forEach(i => { if (i.type==='video'){ try{i.domElement.pause();}catch(e){} } });
+            DOM.renderOverlay.classList.add('hidden');
+            DOM.renderOverlay.classList.remove('flex');
+        });
+
+        // ---------------- Crop modal (rebuilt: canvas WYSIWYG + Fill/Fit) ----------------
+        let activeCropItemId = null;
+        // working copy while the modal is open
+        let cs = { mode:'fill', zoom:1.0, offX:0, offY:0 };
+
+        const cropModal     = document.getElementById('cropModal');
+        const cropViewport  = document.getElementById('cropViewport');
+        const cropCanvas    = document.getElementById('cropCanvas');
+        const cctx          = cropCanvas.getContext('2d');
+        const cropZoomSlider= document.getElementById('cropZoomSlider');
+        const cropXSlider   = document.getElementById('cropXSlider');
+        const cropYSlider   = document.getElementById('cropYSlider');
+        const zoomValue     = document.getElementById('zoomValue');
+        const cancelCropBtn = document.getElementById('cancelCropBtn');
+        const saveCropBtn   = document.getElementById('saveCropBtn');
+        const modeFillBtn   = document.getElementById('modeFillBtn');
+        const modeFitBtn    = document.getElementById('modeFitBtn');
+        const modeHelp      = document.getElementById('modeHelp');
+        const cropCenterBtn = document.getElementById('cropCenterBtn');
+        const xHint = document.getElementById('xHint');
+        const yHint = document.getElementById('yHint');
+
+        function cropImg(){
+            const it = state.items.find(i=>i.id===activeCropItemId);
+            return it ? it.domElement : null;
+        }
+
+        // Draw the preview using the SAME frameDraw math as the real export.
+        function drawCropPreview(){
+            const el = cropImg(); if(!el) return;
+            const W = cropCanvas.width, H = cropCanvas.height;
+            const iw = el.naturalWidth || el.videoWidth || 1080;
+            const ih = el.naturalHeight || el.videoHeight || 1920;
+            cctx.clearRect(0,0,W,H);
+            cctx.fillStyle = '#000'; cctx.fillRect(0,0,W,H);
+
+            if (cs.mode === 'fit'){
+                const bg = frameDraw(iw, ih, W, H, 'fill', 1, 0, 0, 1);
+                cctx.save();
+                cctx.filter = 'blur(20px) brightness(0.45)';
+                try { cctx.drawImage(el, bg.dx, bg.dy, bg.dw, bg.dh); } catch(e){}
+                cctx.restore();
+            }
+            const d = frameDraw(iw, ih, W, H, cs.mode, cs.zoom, cs.offX, cs.offY, 1);
+            try { cctx.drawImage(el, d.dx, d.dy, d.dw, d.dh); } catch(e){}
+
+            // tell the user when an axis is pinned (Fill mode, no slack)
+            const pinX = cs.mode==='fill' && d.slackX <= 1;
+            const pinY = cs.mode==='fill' && d.slackY <= 1;
+            setAxis(cropXSlider, xHint, pinX);
+            setAxis(cropYSlider, yHint, pinY);
+            return d;
+        }
+        function setAxis(slider, hint, pinned){
+            slider.disabled = pinned;
+            slider.parentElement.style.opacity = pinned ? 0.4 : 1;
+            hint.textContent = pinned ? 'zoom in / use Fit' : '';
+        }
+
+        function setMode(mode){
+            cs.mode = mode;
+            const on  = 'bg-pink-600 text-white border-pink-500';
+            const off = 'bg-slate-800 text-slate-300 border-slate-700';
+            modeFillBtn.className = `py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${mode==='fill'?on:off}`;
+            modeFitBtn.className  = `py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${mode==='fit'?on:off}`;
+            const isVid = (state.items.find(i=>i.id===activeCropItemId) || {}).type === 'video';
+            const noun = isVid ? 'video' : 'photo';
+            if (mode === 'fill'){
+                cropZoomSlider.min = 1; cropZoomSlider.max = 4;
+                if (cs.zoom < 1) cs.zoom = 1;
+                modeHelp.textContent = `Fill: ${noun} is cropped to completely fill the 9:16 frame. Zoom in, then drag to choose what shows.`;
+            } else {
+                cropZoomSlider.min = 0.4; cropZoomSlider.max = 2;
+                modeHelp.textContent = `Fit: the whole ${noun} is shown with a soft blurred background. Drag to position it anywhere.`;
+            }
+            cropZoomSlider.value = cs.zoom;
+            zoomValue.textContent = cs.zoom.toFixed(2)+'x';
+            drawCropPreview();
+        }
+
+        // --- video preview support inside the crop modal ---
+        const cropVideoPlayBtn   = document.getElementById('cropVideoPlayBtn');
+        const cropVideoPlayIcon  = document.getElementById('cropVideoPlayIcon');
+        const cropVideoPlayLabel = document.getElementById('cropVideoPlayLabel');
+        let cropPreviewRaf = null;
+
+        function startCropLoop(){
+            cancelAnimationFrame(cropPreviewRaf);
+            const tick = () => {
+                drawCropPreview();
+                cropPreviewRaf = requestAnimationFrame(tick);
+            };
+            cropPreviewRaf = requestAnimationFrame(tick);
+        }
+        function stopCropLoop(){
+            cancelAnimationFrame(cropPreviewRaf); cropPreviewRaf = null;
+        }
+        function stopCropVideo(){
+            const item = state.items.find(i=>i.id===activeCropItemId);
+            if (item && item.type === 'video'){
+                try { item.domElement.pause(); } catch(e){}
+            }
+            stopCropLoop();
+            cropVideoPlayIcon.textContent  = '▶';
+            cropVideoPlayLabel.textContent = 'Play preview · check the action stays in frame';
+        }
+
+        cropVideoPlayBtn.addEventListener('click', ()=>{
+            const item = state.items.find(i=>i.id===activeCropItemId);
+            if (!item || item.type !== 'video') return;
+            const v = item.domElement;
+            if (v.paused){
+                v.muted = true;            // silent preview — audio plays on export
+                v.loop  = true;            // loop while framing
+                try { v.play(); } catch(e){}
+                cropVideoPlayIcon.textContent  = '❚❚';
+                cropVideoPlayLabel.textContent = 'Pause preview';
+                startCropLoop();
+            } else {
+                stopCropVideo();
+            }
+        });
+
+        window.openCropModal = function(id){
+            const item = state.items.find(i=>i.id===id); if(!item) return;
+            activeCropItemId = id;
+            cs.mode = item.fitMode || 'fill';
+            cs.zoom = item.zoom || 1.0;
+            cs.offX = item.offX || 0;
+            cs.offY = item.offY || 0;
+            cropXSlider.value = cs.offX;
+            cropYSlider.value = cs.offY;
+            cropModal.classList.remove('hidden'); cropModal.classList.add('flex');
+            setMode(cs.mode);
+
+            if (item.type === 'video'){
+                cropVideoPlayBtn.classList.remove('hidden');
+                cropCenterBtn.textContent = 'Re-center Video';
+                modeFitBtn.textContent = 'Fit Whole Video';
+                const v = item.domElement;
+                // Make sure a real frame is decoded so the preview isn't black.
+                v.muted = true; v.playsInline = true;
+                const drawWhenReady = () => drawCropPreview();
+                if (v.readyState >= 2) {
+                    // already has a frame
+                    try { if (v.currentTime < 0.05) v.currentTime = 0.1; } catch(e){}
+                    drawCropPreview();
+                } else {
+                    v.addEventListener('loadeddata', drawWhenReady, { once:true });
+                    try { v.load(); } catch(e){}
+                }
+                v.addEventListener('seeked', drawWhenReady, { once:true });
+            } else {
+                cropVideoPlayBtn.classList.add('hidden');
+                cropCenterBtn.textContent = 'Re-center Photo';
+                modeFitBtn.textContent = 'Fit Whole Photo';
+                if (item.domElement.complete) drawCropPreview();
+                else item.domElement.onload = drawCropPreview;
+            }
+        };
+
+        function syncSliders(){
+            cs.zoom = parseFloat(cropZoomSlider.value);
+            cs.offX = parseFloat(cropXSlider.value);
+            cs.offY = parseFloat(cropYSlider.value);
+            zoomValue.textContent = cs.zoom.toFixed(2)+'x';
+            drawCropPreview();
+        }
+        cropZoomSlider.addEventListener('input', syncSliders);
+        cropXSlider.addEventListener('input', syncSliders);
+        cropYSlider.addEventListener('input', syncSliders);
+        modeFillBtn.addEventListener('click', ()=> setMode('fill'));
+        modeFitBtn.addEventListener('click',  ()=> setMode('fit'));
+        cropCenterBtn.addEventListener('click', ()=>{
+            cs.offX = 0; cs.offY = 0;
+            cropXSlider.value = 0; cropYSlider.value = 0;
+            drawCropPreview();
+        });
+
+        // Drag the photo directly — maps finger movement to the offset range
+        let dragging=false, sX=0, sY=0, bX=0, bY=0;
+        cropViewport.addEventListener('pointerdown', e=>{
+            dragging=true; sX=e.clientX; sY=e.clientY; bX=cs.offX; bY=cs.offY;
+            cropViewport.setPointerCapture(e.pointerId);
+        });
+        cropViewport.addEventListener('pointermove', e=>{
+            if(!dragging) return;
+            const el = cropImg(); if(!el) return;
+            const rect = cropViewport.getBoundingClientRect();
+            const scaleToCanvas = cropCanvas.width / rect.width;
+            const dxC = (e.clientX - sX) * scaleToCanvas;
+            const dyC = (e.clientY - sY) * scaleToCanvas;
+            const iw = el.naturalWidth || el.videoWidth || 1080;
+            const ih = el.naturalHeight || el.videoHeight || 1920;
+            const W = cropCanvas.width, H = cropCanvas.height;
+            const d = frameDraw(iw, ih, W, H, cs.mode, cs.zoom, cs.offX, cs.offY, 1);
+            const rangeX = cs.mode==='fit' ? (W/2) : (d.slackX/2);
+            const rangeY = cs.mode==='fit' ? (H/2) : (d.slackY/2);
+            if (rangeX > 1) cs.offX = Math.max(-1, Math.min(1, bX + dxC / rangeX));
+            if (rangeY > 1) cs.offY = Math.max(-1, Math.min(1, bY + dyC / rangeY));
+            cropXSlider.value = cs.offX; cropYSlider.value = cs.offY;
+            drawCropPreview();
+        });
+        cropViewport.addEventListener('pointerup', e=>{
+            dragging=false; try{cropViewport.releasePointerCapture(e.pointerId);}catch(_){}
+        });
+        cropViewport.addEventListener('pointercancel', ()=> dragging=false);
+
+        cancelCropBtn.addEventListener('click', ()=>{
+            stopCropVideo();
+            cropModal.classList.add('hidden'); cropModal.classList.remove('flex');
+            activeCropItemId=null;
+        });
+        saveCropBtn.addEventListener('click', ()=>{
+            const item=state.items.find(i=>i.id===activeCropItemId);
+            if(item){
+                item.fitMode = cs.mode;
+                item.zoom = cs.zoom;
+                item.offX = cs.offX;
+                item.offY = cs.offY;
+                // restore the export-side loop setting and rewind so playback starts clean
+                if (item.type === 'video'){
+                    try { item.domElement.pause(); item.domElement.currentTime = 0; } catch(e){}
+                    item.domElement.loop = false;
+                    item._started = false;
+                }
+            }
+            stopCropVideo();
+            cropModal.classList.add('hidden'); cropModal.classList.remove('flex');
+            activeCropItemId=null; showToast("Framing applied!");
+        });
+    </script>
+</body>
+</html>
