@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TikTok Storybook Studio</title>
+    <title>Bee Reel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous" onerror="window.__segScriptFailed=true"></script>
@@ -38,21 +38,141 @@
             aspect-ratio:1; font-size:22px; color:#e2e8f0; }
         .fx-tr .t { font-size:10px; font-weight:600; color:#cbd5e1; }
         .badge-mini { font-size:9px; font-weight:700; padding:1px 5px; border-radius:5px; letter-spacing:.04em; }
+
+        /* ================= BEE REEL HONEY THEME ================= */
+        body { background-color: #1a1104; }
+        .bg-slate-900 { background-color: #1f1505 !important; }
+        .bg-slate-800 { background-color: #2b1d08 !important; }
+        .bg-slate-700 { background-color: #3b2a0d !important; }
+        .bg-slate-900\/50 { background-color: rgba(26,17,4,.55) !important; }
+        .bg-slate-800\/50 { background-color: rgba(43,29,8,.55) !important; }
+        .border-slate-800 { border-color: #3d2c0e !important; }
+        .border-slate-700 { border-color: #4a3713 !important; }
+        .border-slate-600 { border-color: #5c4517 !important; }
+        ::-webkit-scrollbar-thumb { background: #8a6a1f; }
+
+        /* honeycomb texture across the app */
+        main, #screen-music, #screen-timeline, #screen-text, #screen-export {
+            background-image: url("data:image/svg+xml,%3Csvg width='56' height='100' viewBox='0 0 56 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 0L56 16.6v33.2L28 66.4 0 49.8V16.6L28 0zm0 66.4L56 83v33.2L28 132.8 0 116.2V83l28-16.6z' fill='none' stroke='%23f59e0b' stroke-opacity='0.07' stroke-width='1.5'/%3E%3C/svg%3E");
+            background-size: 56px 100px;
+        }
+
+        /* dripping honey bar under the header */
+        .honey-bar { position: relative; height: 10px; z-index: 25;
+            background: linear-gradient(180deg, #f59e0b, #b45309);
+            box-shadow: 0 2px 8px rgba(245,158,11,.35); }
+        .honey-drip { position: absolute; top: 9px; width: 14px;
+            background: linear-gradient(180deg, #d97706, #92400e);
+            border-radius: 0 0 12px 12px; transform-origin: top center;
+            animation: dripStretch 6s ease-in-out infinite; }
+        .honey-drip::after { content:""; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+            width: 11px; height: 13px; background: #b45309; border-radius: 50% 50% 60% 60%;
+            animation: dripFall 6s ease-in infinite; animation-delay: inherit; opacity: 0; }
+        @keyframes dripStretch {
+            0%, 55% { height: 6px; }
+            70% { height: 26px; }
+            78% { height: 30px; }
+            85%, 100% { height: 6px; }
+        }
+        @keyframes dripFall {
+            0%, 76% { opacity: 0; transform: translate(-50%, 0); }
+            80% { opacity: 1; transform: translate(-50%, 2px); }
+            100% { opacity: 0; transform: translate(-50%, 60px); }
+        }
+        /* slow honey shine sweeping the render button */
+        #renderBtn { position: relative; overflow: hidden; }
+        #renderBtn::after {
+            content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+            background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
+            animation: honeyShine 4.5s ease-in-out infinite;
+        }
+        @keyframes honeyShine { 0%, 70% { left:-60%; } 90%, 100% { left:130%; } }
+
+        /* custom animated bee */
+        .bee-wrap { display:inline-flex; -webkit-text-fill-color:initial; }
+        .bee-svg { animation: beeBob 2.8s ease-in-out infinite; transform-origin:center; overflow:visible;
+            filter: drop-shadow(0 2px 3px rgba(120,53,15,.5)); }
+        @keyframes beeBob {
+            0%,100% { transform: translateY(0) rotate(-3deg); }
+            50%     { transform: translateY(-3px) rotate(3deg); }
+        }
+        .bee-wing { transform-origin: 33px 16px; animation: beeFlap .12s ease-in-out infinite; }
+        .bee-wing-r { transform-origin: 33px 16px; animation: beeFlapR .12s ease-in-out infinite; }
+        @keyframes beeFlap  { 0%,100%{ transform: rotate(0deg)   scaleY(1);} 50%{ transform: rotate(-22deg) scaleY(.7);} }
+        @keyframes beeFlapR { 0%,100%{ transform: rotate(0deg)   scaleY(1);} 50%{ transform: rotate(22deg)  scaleY(.7);} }
     </style>
 </head>
 <body class="h-[100dvh] w-full flex flex-col overflow-hidden">
 
     <!-- Top Header -->
-    <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-center shrink-0 z-20 shadow-md">
-        <h1 class="text-lg font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
-            Storybook Studio
+    <header class="h-24 bg-slate-900 flex items-center justify-center shrink-0 z-20">
+        <h1 class="text-3xl font-extrabold bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent flex items-center gap-2 tracking-tight">
+            <span class="bee-wrap" aria-hidden="true">
+                <svg viewBox="0 0 64 56" width="90" height="78" class="bee-svg">
+                    <defs>
+                        <radialGradient id="beeGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#fde047" stop-opacity=".55"/>
+                            <stop offset="100%" stop-color="#fde047" stop-opacity="0"/>
+                        </radialGradient>
+                        <linearGradient id="beeBody" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#fbbf24"/>
+                            <stop offset="100%" stop-color="#d97706"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- soft glow -->
+                    <circle cx="34" cy="30" r="22" fill="url(#beeGlow)"/>
+                    <!-- wings (animated) -->
+                    <g class="bee-wing bee-wing-l">
+                        <ellipse cx="26" cy="14" rx="11" ry="7" fill="#fffbeb" fill-opacity=".85" stroke="#fcd34d" stroke-width="1.5"/>
+                    </g>
+                    <g class="bee-wing bee-wing-r">
+                        <ellipse cx="40" cy="14" rx="11" ry="7" fill="#fffbeb" fill-opacity=".85" stroke="#fcd34d" stroke-width="1.5"/>
+                    </g>
+                    <!-- body -->
+                    <g>
+                        <ellipse cx="33" cy="34" rx="17" ry="13" fill="url(#beeBody)" stroke="#92400e" stroke-width="2"/>
+                        <!-- stripes -->
+                        <path d="M30 22.5 Q33 21.6 38.5 24 L41 31 Q35 29 28.5 30 Z" fill="#3b2207"/>
+                        <path d="M27 31 Q34 29.6 43 32 L42.5 39 Q34 37.4 26.5 39 Z" fill="#3b2207"/>
+                        <path d="M27.5 40 Q34 38.6 42 40.6 L38 46 Q32 47.6 28.5 45 Z" fill="#3b2207"/>
+                        <!-- stinger -->
+                        <path d="M49 35 l7 2 -7 2 z" fill="#92400e"/>
+                        <!-- eye + smile -->
+                        <circle cx="20.5" cy="31" r="2.4" fill="#1c1206"/>
+                        <circle cx="21.4" cy="30.2" r=".8" fill="#fff"/>
+                        <path d="M17 36 q4 3 8 1" fill="none" stroke="#1c1206" stroke-width="1.4" stroke-linecap="round"/>
+                        <!-- antennae -->
+                        <path d="M22 21 q-3 -6 -7 -7" fill="none" stroke="#92400e" stroke-width="1.6" stroke-linecap="round"/>
+                        <circle cx="14.5" cy="13.5" r="1.8" fill="#fbbf24"/>
+                    </g>
+                </svg>
+            </span>
+            Bee Reel
         </h1>
     </header>
+    <!-- dripping honey under the header -->
+    <div class="honey-bar shrink-0">
+        <span class="honey-drip" style="left:12%; animation-delay:0s"></span>
+        <span class="honey-drip" style="left:31%; animation-delay:2.1s"></span>
+        <span class="honey-drip" style="left:52%; animation-delay:.9s"></span>
+        <span class="honey-drip" style="left:71%; animation-delay:3.4s"></span>
+        <span class="honey-drip" style="left:88%; animation-delay:1.6s"></span>
+    </div>
 
     <!-- Toast -->
     <div id="toast" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700 transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 translate-y-[-20px]">
-        <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         <span id="toastMsg" class="text-sm font-medium">Message here</span>
+    </div>
+
+    <!-- Restore banner -->
+    <div id="restoreBanner" class="hidden fixed bottom-20 left-3 right-3 z-50 bg-slate-800 border border-slate-600 rounded-2xl p-4 shadow-2xl items-center gap-3 max-w-md mx-auto">
+        <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold text-white">Restore your last project?</div>
+            <div id="restoreInfo" class="text-[11px] text-slate-400 mt-0.5"></div>
+        </div>
+        <button id="restoreYesBtn" class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-600 to-yellow-600 text-white active:scale-95 transition shrink-0">Restore</button>
+        <button id="restoreNoBtn" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-700 text-slate-300 active:scale-95 transition shrink-0">Start fresh</button>
     </div>
 
     <main class="flex-1 relative overflow-hidden bg-slate-900">
@@ -61,7 +181,7 @@
         <div id="screen-music" class="screen active p-6 scrollable-area overflow-y-auto">
             <div class="max-w-md mx-auto w-full">
                 <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-400">
+                    <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400">
                         <span class="font-bold">1</span>
                     </div>
                     <h2 class="text-xl font-bold text-white">Master Audio</h2>
@@ -70,7 +190,7 @@
 
                 <div class="relative group cursor-pointer mb-6">
                     <input type="file" id="audioInput" accept="audio/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
-                    <div class="w-full bg-slate-800 border-2 border-dashed border-slate-600 rounded-2xl p-8 text-center active:border-pink-500 transition-colors flex flex-col items-center shadow-lg">
+                    <div class="w-full bg-slate-800 border-2 border-dashed border-slate-600 rounded-2xl p-8 text-center active:border-amber-500 transition-colors flex flex-col items-center shadow-lg">
                         <svg class="w-12 h-12 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2z"></path></svg>
                         <span id="audioFileName" class="text-base font-semibold text-slate-200">Tap to Upload Song</span>
                         <span class="text-sm text-slate-500 mt-1">MP3, WAV, M4A</span>
@@ -85,7 +205,7 @@
                     </div>
                     <div class="text-right">
                         <div class="text-xs text-slate-500">Duration</div>
-                        <div class="text-pink-400 font-mono font-bold text-lg"><span id="audioDurationTxt">0.0</span>s</div>
+                        <div class="text-amber-400 font-mono font-bold text-lg"><span id="audioDurationTxt">0.0</span>s</div>
                     </div>
                 </div>
 
@@ -101,14 +221,14 @@
             <div class="p-4 border-b border-slate-800 bg-slate-900 z-10 shrink-0 grid grid-cols-2 gap-2">
                 <div class="relative cursor-pointer">
                     <input type="file" id="mediaInput" accept="image/*,video/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
-                    <div class="h-full bg-gradient-to-r from-pink-600/20 to-violet-600/20 border border-pink-500/30 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-pink-600/30 transition">
-                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        <span class="font-semibold text-pink-100 text-sm">Upload</span>
+                    <div class="h-full bg-gradient-to-r from-amber-600/20 to-yellow-600/20 border border-amber-500/30 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-amber-600/30 transition">
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        <span class="font-semibold text-amber-100 text-sm">Upload</span>
                     </div>
                 </div>
-                <button id="openCameraBtn" class="bg-gradient-to-r from-rose-600/25 to-red-600/25 border border-rose-500/40 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-rose-600/40 transition">
-                    <svg class="w-5 h-5 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                    <span class="font-semibold text-rose-50 text-sm">Record</span>
+                <button id="openCameraBtn" class="bg-gradient-to-r from-amber-600/25 to-red-600/25 border border-amber-500/40 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-amber-600/40 transition">
+                    <svg class="w-5 h-5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <span class="font-semibold text-amber-50 text-sm">Record</span>
                 </button>
             </div>
 
@@ -122,11 +242,29 @@
             </div>
         </div>
 
+        <!-- SCREEN: TEXT / CAPTIONS -->
+        <div id="screen-text" class="screen flex-col h-full bg-slate-900">
+            <div class="p-4 border-b border-slate-800 shrink-0">
+                <button id="addCaptionBtn" class="w-full bg-gradient-to-r from-orange-600/25 to-yellow-600/25 border border-orange-500/40 rounded-xl p-3 text-center flex items-center justify-center gap-2 active:bg-orange-600/40 transition">
+                    <span class="text-orange-300 font-bold text-lg leading-none">＋</span>
+                    <span class="font-semibold text-orange-50 text-sm">Add Caption</span>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 scrollable-area pb-24">
+                <div id="emptyCaptions" class="h-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl p-6 text-center">
+                    <span class="text-3xl mb-3 opacity-50">💬</span>
+                    <p class="text-sm">No captions yet.</p>
+                    <p class="text-xs mt-1">Add hooks, lyrics, or your @handle — they're drawn right onto the video.</p>
+                </div>
+                <div id="captionList" class="space-y-3"></div>
+            </div>
+        </div>
+
         <!-- SCREEN 3: EXPORT -->
         <div id="screen-export" class="screen p-6 scrollable-area overflow-y-auto">
             <div class="max-w-md mx-auto w-full">
                 <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400">
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
                         <span class="font-bold">3</span>
                     </div>
                     <h2 class="text-xl font-bold text-white">Final Review</h2>
@@ -147,24 +285,50 @@
                             <span id="mathVideos" class="font-mono text-slate-400">-0.0s</span>
                         </div>
                         <div class="w-full h-px bg-slate-700 my-1"></div>
-                        <div class="flex justify-between items-center text-base p-2 bg-gradient-to-r from-pink-500/10 to-violet-500/10 rounded-lg border border-pink-500/20">
-                            <span class="text-pink-100 font-medium">Auto-Fill Remaining:</span>
-                            <span id="mathSplit" class="font-mono text-pink-400 font-bold text-lg">0.0s</span>
+                        <div class="flex justify-between items-center text-base p-2 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-lg border border-amber-500/20">
+                            <span class="text-amber-100 font-medium">Auto-Fill Remaining:</span>
+                            <span id="mathSplit" class="font-mono text-amber-400 font-bold text-lg">0.0s</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Beat Sync (NEW) -->
+                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 mb-6 shadow-xl">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">🥁 Beat Sync</span>
+                        <span id="bpmActiveBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-600 text-white">ON</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mb-3">Photos switch on the beat. Tap your song's rhythm to set BPM, or type it in.</p>
+                    <div class="flex gap-2 mb-3">
+                        <input id="bpmInput" type="number" min="40" max="300" placeholder="BPM" value=""
+                            class="w-24 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-lg text-center focus:outline-none focus:border-amber-500">
+                        <button id="tapTempoBtn" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm active:scale-95 transition">👆 Tap tempo</button>
+                        <button id="bpmOffBtn" class="px-4 py-2 bg-slate-700 hover:bg-red-900 text-slate-300 font-bold rounded-xl text-sm active:scale-95 transition">Off</button>
+                    </div>
+                    <div class="flex justify-between mb-1 text-slate-400 text-xs">
+                        <span>Beats per photo</span>
+                        <span id="bpsTxt" class="text-amber-400 font-mono font-bold">2 beats</span>
+                    </div>
+                    <input id="beatsPerSlide" type="range" min="1" max="8" step="1" value="2" class="w-full accent-amber-500 h-1.5 bg-slate-900 rounded-lg cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-600 mt-1"><span>1 = very fast</span><span>8 = slow build</span></div>
+                    <p id="bpmStatus" class="text-[11px] text-center mt-2 font-mono text-amber-300 h-4"></p>
                 </div>
 
                 <!-- Transition speed -->
                 <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 mb-8 shadow-xl">
                     <div class="flex justify-between mb-2">
                         <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">Transition Speed</span>
-                        <span id="transSpeedTxt" class="text-pink-400 font-mono font-bold text-sm">0.5s</span>
+                        <span id="transSpeedTxt" class="text-amber-400 font-mono font-bold text-sm">0.5s</span>
                     </div>
-                    <input id="transSpeed" type="range" min="0.2" max="1.2" step="0.05" value="0.5" class="w-full accent-pink-500 h-1.5 bg-slate-900 rounded-lg cursor-pointer">
+                    <input id="transSpeed" type="range" min="0.2" max="1.2" step="0.05" value="0.5" class="w-full accent-amber-500 h-1.5 bg-slate-900 rounded-lg cursor-pointer">
                     <p class="text-[11px] text-slate-500 mt-2">Applies to every clip's transition. Auto-shortens if a clip is very short.</p>
                 </div>
 
-                <button id="renderBtn" class="w-full bg-gradient-to-r from-pink-600 to-violet-600 active:from-pink-500 active:to-violet-500 text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-pink-500/25 transform transition active:scale-95 flex justify-center items-center gap-3 text-lg">
+                <button id="previewBtn" class="w-full mb-3 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 px-4 rounded-2xl border border-slate-600 transform transition active:scale-95 flex justify-center items-center gap-3">
+                    <svg class="w-5 h-5 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Preview (no export)
+                </button>
+                <button id="renderBtn" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 active:from-amber-500 active:to-yellow-500 text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-amber-500/25 transform transition active:scale-95 flex justify-center items-center gap-3 text-lg">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     Render & Download
                 </button>
@@ -175,13 +339,17 @@
 
     <!-- Bottom Tab Bar -->
     <nav class="h-16 bg-slate-900 border-t border-slate-800 flex justify-around items-center shrink-0 z-20 pb-safe">
-        <button onclick="switchTab('music')" id="tab-music" class="flex-1 flex flex-col items-center justify-center gap-1 text-pink-500 transition-colors">
+        <button onclick="switchTab('music')" id="tab-music" class="flex-1 flex flex-col items-center justify-center gap-1 text-amber-500 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2z"></path></svg>
             <span class="text-[10px] font-semibold">Music</span>
         </button>
         <button onclick="switchTab('timeline')" id="tab-timeline" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
             <span class="text-[10px] font-semibold">Timeline</span>
+        </button>
+        <button onclick="switchTab('text')" id="tab-text" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 8l4-4h6a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h2v4z"></path></svg>
+            <span class="text-[10px] font-semibold">Text</span>
         </button>
         <button onclick="switchTab('export')" id="tab-export" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -191,12 +359,12 @@
 
     <!-- Render Overlay -->
     <div id="renderOverlay" class="fixed inset-0 bg-slate-900/98 backdrop-blur-3xl z-[100] hidden flex-col items-center justify-center px-4">
-        <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">Recording Video...</h2>
+        <h2 id="renderOverlayTitle" class="text-2xl font-bold text-white mb-2 tracking-tight">Recording Video...</h2>
         <p class="text-slate-400 text-sm mb-8 text-center">Do not close this app or lock your screen.</p>
-        <div class="relative w-[225px] h-[400px] bg-black rounded-xl overflow-hidden shadow-2xl shadow-pink-500/20 border border-slate-700">
+        <div class="relative w-[225px] h-[400px] bg-black rounded-xl overflow-hidden shadow-2xl shadow-amber-500/20 border border-slate-700">
             <canvas id="renderCanvas" width="720" height="1280" class="w-full h-full object-cover"></canvas>
             <div class="absolute bottom-0 left-0 right-0 h-2 bg-slate-800">
-                <div id="renderProgress" class="h-full bg-gradient-to-r from-pink-500 to-violet-500 w-0 transition-all duration-300"></div>
+                <div id="renderProgress" class="h-full bg-gradient-to-r from-amber-500 to-yellow-500 w-0 transition-all duration-300"></div>
             </div>
         </div>
         <button id="cancelRenderBtn" class="mt-8 text-slate-400 hover:text-white px-8 py-3 rounded-full border border-slate-600 hover:bg-slate-800 transition active:scale-95">
@@ -208,17 +376,17 @@
     <div id="durationModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 Set Display Time
             </h3>
             <p class="text-xs text-slate-400">Lock in an exact duration for this media, or let it auto-fill the remaining time of your song.</p>
             <div class="flex items-center gap-3 mt-2">
-                <input type="number" id="durationInput" step="0.1" min="0.1" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-pink-500" placeholder="e.g. 15.0">
+                <input type="number" id="durationInput" step="0.1" min="0.1" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-amber-500" placeholder="e.g. 15.0">
                 <span class="text-slate-400 font-bold">seconds</span>
             </div>
             <div class="flex gap-2 mt-4">
                 <button onclick="saveDuration(true)" class="flex-1 py-3 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition border border-slate-700">Auto-Fill Time</button>
-                <button onclick="saveDuration(false)" class="flex-1 py-3 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Save Exact Time</button>
+                <button onclick="saveDuration(false)" class="flex-1 py-3 px-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Save Exact Time</button>
             </div>
             <button onclick="closeDurationModal()" class="mt-2 text-slate-500 hover:text-white text-xs underline active:scale-95 transition">Cancel</button>
         </div>
@@ -228,7 +396,7 @@
     <div id="cropModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl max-h-[94dvh] overflow-y-auto scrollable-area">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
                 Framing & Crop
             </h3>
 
@@ -256,23 +424,23 @@
 
             <div class="space-y-3 text-sm mt-1">
                 <div>
-                    <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Zoom</span><span id="zoomValue" class="text-pink-400 font-mono font-bold">1.00x</span></div>
-                    <input id="cropZoomSlider" type="range" min="1" max="4" step="0.02" value="1" class="w-full accent-pink-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Zoom</span><span id="zoomValue" class="text-amber-400 font-mono font-bold">1.00x</span></div>
+                    <input id="cropZoomSlider" type="range" min="1" max="4" step="0.02" value="1" class="w-full accent-amber-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div id="xWrap">
                         <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Horizontal</span><span id="xHint" class="text-[10px] text-slate-600"></span></div>
-                        <input id="cropXSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-violet-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
+                        <input id="cropXSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-yellow-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
                     <div id="yWrap">
                         <div class="flex justify-between mb-1 text-slate-400 text-xs"><span>Vertical</span><span id="yHint" class="text-[10px] text-slate-600"></span></div>
-                        <input id="cropYSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-violet-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
+                        <input id="cropYSlider" type="range" min="-1" max="1" step="0.02" value="0" class="w-full accent-yellow-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"></div>
                 </div>
                 <button id="cropCenterBtn" class="w-full py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition">Re-center Photo</button>
             </div>
 
             <div class="flex gap-2 mt-2">
                 <button id="cancelCropBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition">Cancel</button>
-                <button id="saveCropBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
+                <button id="saveCropBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
             </div>
         </div>
     </div>
@@ -281,7 +449,7 @@
     <div id="fxModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[110] hidden flex-col items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4 relative shadow-2xl max-h-[90dvh] overflow-y-auto scrollable-area">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <span class="text-pink-500 text-xl">✨</span> Filters & Transition
+                <span class="text-amber-500 text-xl">✨</span> Filters & Transition
             </h3>
 
             <div>
@@ -297,7 +465,7 @@
 
             <div class="flex gap-2 mt-2">
                 <button id="cancelFxBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition">Cancel</button>
-                <button id="saveFxBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
+                <button id="saveFxBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply</button>
             </div>
         </div>
     </div>
@@ -325,9 +493,9 @@
                 <button id="modePhotoBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">🖼️ Photo only</button>
             </div>
             <div id="cameraBubbleRow" class="hidden px-3 pb-3 flex-col gap-1">
-                <div class="flex justify-between text-[11px] text-slate-400"><span>Bubble size</span><span id="bubbleSizeTxt" class="text-cyan-300 font-mono">55%</span></div>
-                <input id="bubbleSize" type="range" min="0.22" max="0.9" step="0.01" value="0.55" class="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
-                <div class="text-[11px] text-cyan-200/80 text-center mt-1">👆 Drag the bubble on the screen to move it</div>
+                <div class="flex justify-between text-[11px] text-slate-400"><span>Bubble size</span><span id="bubbleSizeTxt" class="text-orange-300 font-mono">55%</span></div>
+                <input id="bubbleSize" type="range" min="0.22" max="0.9" step="0.01" value="0.55" class="w-full accent-orange-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                <div class="text-[11px] text-orange-200/80 text-center mt-1">👆 Drag the bubble on the screen to move it</div>
             </div>
             <input type="file" id="cameraBgUpload" accept="image/*" hidden>
         </div>
@@ -369,7 +537,7 @@
 
             <div id="cameraReviewControls" class="hidden flex-row items-center justify-center gap-3 w-full">
                 <button id="cameraRetakeBtn" class="px-5 py-3 bg-slate-800 text-white rounded-full text-sm font-semibold active:scale-95 transition border border-slate-700">↺ Retake</button>
-                <button id="cameraUseBtn" class="px-6 py-3 bg-gradient-to-r from-pink-600 to-violet-600 text-white rounded-full text-sm font-bold active:scale-95 transition shadow-lg">✓ Use this take</button>
+                <button id="cameraUseBtn" class="px-6 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-full text-sm font-bold active:scale-95 transition shadow-lg">✓ Use this take</button>
             </div>
         </div>
     </div>
@@ -405,7 +573,7 @@
 
             <div class="flex gap-2 mt-2">
                 <button id="cycleOffBtn" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition border border-slate-700">Turn Off</button>
-                <button id="cycleSaveBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply Cycle</button>
+                <button id="cycleSaveBtn" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-amber-500 to-amber-500 hover:from-amber-400 hover:to-amber-400 text-white font-semibold rounded-xl text-xs active:scale-95 transition">Apply Cycle</button>
             </div>
             <button id="cycleCancelBtn" class="text-slate-500 hover:text-white text-xs underline mx-auto active:scale-95 transition">Cancel</button>
         </div>
@@ -417,8 +585,11 @@
             audioDuration: 15.0,
             audioFile: null,
             items: [],
+            captions: [],
             isRendering: false,
-            transDur: 0.5
+            transDur: 0.5,
+            bpm: 0,
+            beatsPerSlide: 2
         };
 
         // Filter + transition definitions
@@ -483,11 +654,11 @@
         window.switchTab = function(tabName) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => {
-                el.classList.remove('text-pink-500'); el.classList.add('text-slate-500');
+                el.classList.remove('text-amber-500'); el.classList.add('text-slate-500');
             });
             document.getElementById('screen-' + tabName).classList.add('active');
             document.getElementById('tab-' + tabName).classList.remove('text-slate-500');
-            document.getElementById('tab-' + tabName).classList.add('text-pink-500');
+            document.getElementById('tab-' + tabName).classList.add('text-amber-500');
         };
 
         new Sortable(DOM.timeline, {
@@ -502,6 +673,52 @@
         DOM.transSpeed.addEventListener('input', e => {
             state.transDur = parseFloat(e.target.value);
             DOM.transSpeedTxt.textContent = state.transDur.toFixed(2) + 's';
+        });
+
+        // ----- Beat Sync -----
+        function bpmStatus(){ return `${state.bpm} BPM · ${((60/state.bpm)*(state.beatsPerSlide||2)).toFixed(2)}s per photo`; }
+        function applyBpm(v){
+            state.bpm = Math.max(40, Math.min(300, Math.round(v)));
+            document.getElementById('bpmInput').value = state.bpm;
+            document.getElementById('bpmActiveBadge').classList.remove('hidden');
+            document.getElementById('bpmStatus').textContent = bpmStatus();
+            updateMath(); renderTimelineUI(); scheduleSave();
+        }
+        document.getElementById('bpmInput').addEventListener('input', e=>{
+            const v=parseFloat(e.target.value); if(v>=40&&v<=300) applyBpm(v);
+        });
+        document.getElementById('bpmOffBtn').addEventListener('click', ()=>{
+            state.bpm=0; state.beatsPerSlide=2;
+            document.getElementById('bpmInput').value='';
+            document.getElementById('bpmActiveBadge').classList.add('hidden');
+            document.getElementById('bpmStatus').textContent='';
+            document.getElementById('beatsPerSlide').value=2;
+            document.getElementById('bpsTxt').textContent='2 beats';
+            updateMath(); renderTimelineUI(); scheduleSave();
+        });
+        document.getElementById('beatsPerSlide').addEventListener('input', e=>{
+            state.beatsPerSlide = parseInt(e.target.value);
+            const v=state.beatsPerSlide;
+            document.getElementById('bpsTxt').textContent = v+(v===1?' beat':' beats');
+            if(state.bpm>0){ document.getElementById('bpmStatus').textContent=bpmStatus(); updateMath(); renderTimelineUI(); }
+            scheduleSave();
+        });
+        // tap tempo
+        let tapTimes=[];
+        document.getElementById('tapTempoBtn').addEventListener('click', ()=>{
+            const now=performance.now(); tapTimes.push(now);
+            if(tapTimes.length>1){
+                // trim old taps (>3s ago)
+                tapTimes=tapTimes.filter(t=>now-t<3000); tapTimes.push(now);
+                if(tapTimes.length>=2){
+                    const diffs=[]; for(let i=1;i<tapTimes.length;i++) diffs.push(tapTimes[i]-tapTimes[i-1]);
+                    const avg=diffs.reduce((a,b)=>a+b,0)/diffs.length;
+                    applyBpm(60000/avg);
+                }
+            }
+            // flash the button
+            const btn=document.getElementById('tapTempoBtn');
+            btn.classList.add('bg-amber-600'); setTimeout(()=>btn.classList.remove('bg-amber-600'),120);
         });
 
         DOM.audioInput.addEventListener('change', function(e) {
@@ -604,7 +821,16 @@
             let remaining = Math.max(0, state.audioDuration - fixedTime);
             let per = 0;
             if (fluidItems.length > 0) {
-                per = remaining / fluidItems.length;
+                if (state.bpm > 0) {
+                    // snap to beat grid: find duration closest to remaining/n that is a
+                    // multiple of (beatDur * beatsPerSlide)
+                    const beatDur = 60 / state.bpm;
+                    const gridDur = beatDur * (state.beatsPerSlide || 2);
+                    const idealN = Math.max(1, Math.round(remaining / gridDur));
+                    per = (remaining / idealN);   // actual per-item, stays tight to song
+                } else {
+                    per = remaining / fluidItems.length;
+                }
                 fluidItems.forEach(i => i.calcDuration = per);
             }
             DOM.mathTotal.textContent = state.audioDuration.toFixed(1) + "s";
@@ -635,20 +861,20 @@
                                     : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M12 5v14l-7-7H4a1 1 0 01-1-1v-4a1 1 0 011-1h1l7-7z" />'}
                             </svg>
                         </button>
-                        <button onclick="toggleLoop('${item.id}')" class="p-2 rounded-lg ${item.loop ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-slate-700 text-slate-400'} active:scale-90 transition">
+                        <button onclick="toggleLoop('${item.id}')" class="p-2 rounded-lg ${item.loop ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-700 text-slate-400'} active:scale-90 transition">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         </button>
-                        <button onclick="toggleVideoFit('${item.id}')" class="p-2 rounded-lg ${isFit ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/50' : 'bg-slate-700 text-slate-300 border border-slate-600'} active:scale-90 transition flex items-center justify-center gap-1" title="Show whole video / crop to fill">
+                        <button onclick="toggleVideoFit('${item.id}')" class="p-2 rounded-lg ${isFit ? 'bg-orange-500/25 text-orange-200 border border-orange-400/50' : 'bg-slate-700 text-slate-300 border border-slate-600'} active:scale-90 transition flex items-center justify-center gap-1" title="Show whole video / crop to fill">
                             <span class="text-sm leading-none">${isFit ? '🖼️' : '🔍'}</span>
                             <span class="text-[10px] font-semibold px-0.5">${isFit ? 'Whole' : 'Fill'}</span>
                         </button>
-                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-90 transition flex items-center justify-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
                             <span class="text-[10px] font-semibold px-1">Crop</span>
                         </button>`;
                 } else {
                     controlsHtml += `
-                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                        <button onclick="openCropModal('${item.id}')" class="p-2 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-90 transition flex items-center justify-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18V6H18M18 18h3M6 6H3" /></svg>
                             <span class="text-[10px] font-semibold px-1">Crop</span>
                         </button>
@@ -659,13 +885,13 @@
                 }
                 // FX button — both images and videos
                 controlsHtml += `
-                    <button onclick="openFxModal('${item.id}')" class="p-2 rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 active:scale-90 transition flex items-center justify-center gap-1">
+                    <button onclick="openFxModal('${item.id}')" class="p-2 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 active:scale-90 transition flex items-center justify-center gap-1">
                         <span class="text-sm leading-none">✨</span>
                         <span class="text-[10px] font-semibold px-0.5">FX</span>
                     </button>`;
 
                 const timeBadgeClass = item.customDuration !== null
-                    ? 'text-pink-400 border border-pink-500/50 bg-pink-500/10'
+                    ? 'text-amber-400 border border-amber-500/50 bg-amber-500/10'
                     : 'text-slate-300 bg-slate-900 border border-transparent';
                 const timeLabel = item.customDuration !== null ? 'LOCKED' : 'AUTO';
 
@@ -677,8 +903,8 @@
                 const slideCount = cycled ? Math.max(1, Math.round(item.calcDuration / Math.max(0.4, item.cycle.seconds))) : 0;
                 const fxBadgesHtml = cycled
                     ? `<span class="badge-mini bg-amber-500/20 text-amber-200 border border-amber-400/50">🔁 CYCLE · ${item.cycle.seconds.toFixed(1)}s × ${slideCount}</span>`
-                    : `<span class="badge-mini bg-violet-500/15 text-violet-300 border border-violet-500/30">${fName}</span>
-                       <span class="badge-mini bg-pink-500/15 text-pink-300 border border-pink-500/30">→ ${tName}</span>`;
+                    : `<span class="badge-mini bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">${fName}</span>
+                       <span class="badge-mini bg-amber-500/15 text-amber-300 border border-amber-500/30">→ ${tName}</span>`;
 
                 el.innerHTML = `
                     <div class="w-16 h-16 rounded-lg bg-slate-900 overflow-hidden shrink-0 relative border border-slate-600">
@@ -890,6 +1116,263 @@
             activeCycleItemId = null;
         });
 
+        // ---------------- Captions (NEW) ----------------
+        // roundRect fallback for older canvases
+        if (!CanvasRenderingContext2D.prototype.roundRect){
+            CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+                r = Math.min(r, w/2, h/2);
+                this.moveTo(x+r, y);
+                this.arcTo(x+w, y,   x+w, y+h, r);
+                this.arcTo(x+w, y+h, x,   y+h, r);
+                this.arcTo(x,   y+h, x,   y,   r);
+                this.arcTo(x,   y,   x+w, y,   r);
+                this.closePath();
+                return this;
+            };
+        }
+        const CAP_COLORS = ['#ffffff','#fde047','#f472b6','#22d3ee','#a3e635','#111111'];
+        const CAP_STYLES = { classic:'Classic', pill:'Pill', neon:'Neon', karaoke:'Karaoke' };
+
+        function newCaption(){
+            return {
+                id: 'cap-' + Math.random().toString(36).substr(2,9),
+                text: 'Your text here',
+                start: 0, dur: 3,
+                style: 'classic',
+                color: '#ffffff',
+                size: 0.06,
+                y: 0.82,
+                x: 0.5         // 0=left  0.5=center  1=right
+            };
+        }
+
+        function renderCaptionsUI(){
+            const list = document.getElementById('captionList');
+            const empty = document.getElementById('emptyCaptions');
+            list.innerHTML = '';
+            empty.classList.toggle('hidden', state.captions.length > 0);
+            state.captions.forEach(c => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3';
+                card.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <input data-k="text" value="${c.text.replace(/"/g,'&quot;')}" maxlength="120"
+                            class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                        <button data-act="del" class="p-2 text-slate-500 hover:text-red-400 rounded-lg transition shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="text-[11px] text-slate-400">Starts at (sec)
+                            <input data-k="start" type="number" min="0" step="0.1" value="${c.start}"
+                                class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-orange-500"></label>
+                        <label class="text-[11px] text-slate-400">Shows for (sec)
+                            <input data-k="dur" type="number" min="0.3" step="0.1" value="${c.dur}"
+                                class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-orange-500"></label>
+                    </div>
+                    <div class="flex gap-1.5" data-row="style">
+                        ${Object.keys(CAP_STYLES).map(s =>
+                            `<button data-style="${s}" class="flex-1 py-1.5 rounded-lg text-[11px] font-bold border transition active:scale-95 ${c.style===s?'bg-orange-500 text-black border-orange-400':'bg-slate-900 text-slate-300 border-slate-700'}">${CAP_STYLES[s]}</button>`
+                        ).join('')}
+                    </div>
+                    <div class="flex gap-2 items-center" data-row="color">
+                        ${CAP_COLORS.map(col =>
+                            `<button data-color="${col}" class="w-7 h-7 rounded-full border-2 transition active:scale-90 ${c.color===col?'border-orange-400 scale-110':'border-slate-600'}" style="background:${col}"></button>`
+                        ).join('')}
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="text-[11px] text-slate-400">Size
+                            <input data-k="size" type="range" min="0.03" max="0.12" step="0.005" value="${c.size}"
+                                class="w-full accent-orange-400 h-1.5 bg-slate-900 rounded-lg cursor-pointer mt-1"></label>
+                        <label class="text-[11px] text-slate-400">Vertical (top → bottom)
+                            <input data-k="y" type="range" min="0.08" max="0.95" step="0.01" value="${c.y}"
+                                class="w-full accent-yellow-400 h-1.5 bg-slate-900 rounded-lg cursor-pointer mt-1"></label>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2" data-row="xpos">
+                        <button data-xv="0.08"  class="py-1.5 rounded-lg text-[11px] font-bold border transition active:scale-95 ${(c.x||0.5)<0.33?'bg-orange-500 text-black border-orange-400':'bg-slate-900 text-slate-300 border-slate-700'}">◀ Left</button>
+                        <button data-xv="0.5"   class="py-1.5 rounded-lg text-[11px] font-bold border transition active:scale-95 ${((c.x||0.5)>=0.33&&(c.x||0.5)<=0.67)?'bg-orange-500 text-black border-orange-400':'bg-slate-900 text-slate-300 border-slate-700'}">● Center</button>
+                        <button data-xv="0.92"  class="py-1.5 rounded-lg text-[11px] font-bold border transition active:scale-95 ${(c.x||0.5)>0.67?'bg-orange-500 text-black border-orange-400':'bg-slate-900 text-slate-300 border-slate-700'}">Right ▶</button>
+                    </div>
+                    ${c.style==='karaoke'?`<p class="text-[11px] text-orange-400/80">🎵 Karaoke: each word highlights in time with your song. Works best with 4–8 words per caption and a set duration.</p>`:''}
+                    `;
+                // wire events
+                card.querySelector('[data-k="text"]').addEventListener('input', e=>{ c.text = e.target.value; scheduleSave(); });
+                card.querySelector('[data-k="start"]').addEventListener('input', e=>{ c.start = Math.max(0, parseFloat(e.target.value)||0); scheduleSave(); });
+                card.querySelector('[data-k="dur"]').addEventListener('input', e=>{ c.dur = Math.max(0.3, parseFloat(e.target.value)||0.3); scheduleSave(); });
+                card.querySelector('[data-k="size"]').addEventListener('input', e=>{ c.size = parseFloat(e.target.value); scheduleSave(); });
+                card.querySelector('[data-k="y"]').addEventListener('input', e=>{ c.y = parseFloat(e.target.value); scheduleSave(); });
+                card.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+                    state.captions = state.captions.filter(x=>x.id!==c.id);
+                    renderCaptionsUI(); scheduleSave();
+                });
+                card.querySelector('[data-row="style"]').addEventListener('click', e=>{
+                    const b = e.target.closest('[data-style]'); if(!b) return;
+                    c.style = b.dataset.style; renderCaptionsUI(); scheduleSave();
+                });
+                card.querySelector('[data-row="color"]').addEventListener('click', e=>{
+                    const b = e.target.closest('[data-color]'); if(!b) return;
+                    c.color = b.dataset.color; renderCaptionsUI(); scheduleSave();
+                });
+                card.querySelector('[data-row="xpos"]').addEventListener('click', e=>{
+                    const b = e.target.closest('[data-xv]'); if(!b) return;
+                    c.x = parseFloat(b.dataset.xv); renderCaptionsUI(); scheduleSave();
+                });
+                list.appendChild(card);
+            });
+        }
+        document.getElementById('addCaptionBtn').addEventListener('click', ()=>{
+            state.captions.push(newCaption());
+            renderCaptionsUI(); scheduleSave();
+        });
+
+        // word-wrap helper for canvas text
+        function wrapText(ctx, text, maxW){
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = []; let line = '';
+            for (const word of words){
+                const test = line ? line + ' ' + word : word;
+                if (ctx.measureText(test).width > maxW && line){ lines.push(line); line = word; }
+                else line = test;
+            }
+            if (line) lines.push(line);
+            return lines.length ? lines : [''];
+        }
+
+        // Draw all captions active at time t — used by preview AND export.
+        function drawCaptions(ctx, t){
+            if (!state.captions.length) return;
+            const W = DOM.renderCanvas.width, H = DOM.renderCanvas.height;
+            const MAR = W * 0.07; // left/right margin
+
+            for (const c of state.captions){
+                if (t < c.start || t > c.start + c.dur) continue;
+                const f = 0.22;
+                const alpha = Math.max(0, Math.min(
+                    (t - c.start) / f,
+                    (c.start + c.dur - t) / f, 1));
+
+                const px = Math.round(c.size * H);
+                const lineH = px * 1.28;
+                const xVal = c.x ?? 0.5;
+                const isLeft = xVal < 0.33, isRight = xVal > 0.67;
+                const xAlign = isLeft ? 'left' : isRight ? 'right' : 'center';
+                const xDraw = isLeft ? MAR : isRight ? W - MAR : W / 2;
+                const maxW = isLeft || isRight ? W * 0.78 : W * 0.86;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.font = `800 ${px}px Inter, sans-serif`;
+                ctx.textAlign = xAlign;
+                ctx.textBaseline = 'middle';
+
+                // ---- KARAOKE (word-by-word) ----
+                if (c.style === 'karaoke') {
+                    const words = c.text.split(/\s+/).filter(Boolean);
+                    if (!words.length){ ctx.restore(); continue; }
+                    const wordDur = c.dur / words.length;
+                    const elapsed = t - c.start;
+                    const activeIdx = Math.min(words.length - 1, Math.floor(elapsed / wordDur));
+
+                    // group words into lines (left-align measurement)
+                    ctx.textAlign = 'left';
+                    const spaceW = ctx.measureText('\u2005').width + ctx.measureText(' ').width * 0.5;
+                    const lineGroups = [];
+                    let cur = { words:[], widths:[], total:0, startIdx:0 };
+                    let gi = 0;
+                    for (const w of words){
+                        const ww = ctx.measureText(w).width;
+                        const needed = cur.words.length ? spaceW + ww : ww;
+                        if (cur.words.length && cur.total + needed > maxW){
+                            lineGroups.push(cur); cur = { words:[], widths:[], total:0, startIdx:gi };
+                        }
+                        cur.words.push(w); cur.widths.push(ww);
+                        cur.total += (cur.words.length > 1 ? spaceW : 0) + ww;
+                        gi++;
+                    }
+                    if (cur.words.length) lineGroups.push(cur);
+
+                    const blockH = lineGroups.length * lineH;
+                    let gy = Math.max(lineH/2+10, Math.min(H-blockH+lineH/2-10,
+                             c.y * H - blockH/2 + lineH/2));
+                    let globalIdx = 0;
+                    for (const line of lineGroups){
+                        // center each line regardless of xAlign for karaoke
+                        let drawX = (W - line.total) / 2;
+                        for (let li = 0; li < line.words.length; li++){
+                            const word = line.words[li], ww = line.widths[li];
+                            const isActive = globalIdx === activeIdx;
+                            const isPast   = globalIdx < activeIdx;
+                            const wordAlpha = alpha * (isActive ? 1 : isPast ? 0.5 : 0.3);
+                            const scale = isActive ? 1.1 : 1;
+                            ctx.save();
+                            ctx.globalAlpha = wordAlpha;
+                            ctx.lineWidth = Math.max(2, px * 0.1);
+                            ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
+                            if (scale !== 1){
+                                ctx.translate(drawX + ww/2, gy);
+                                ctx.scale(scale, scale);
+                                ctx.strokeText(word, -ww/2, 0);
+                                ctx.fillStyle = c.color;
+                                // pulse glow on active word
+                                ctx.shadowColor = c.color; ctx.shadowBlur = px * 0.5;
+                                ctx.fillText(word, -ww/2, 0);
+                            } else {
+                                ctx.strokeText(word, drawX, gy);
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillText(word, drawX, gy);
+                            }
+                            ctx.restore();
+                            drawX += ww + spaceW;
+                            globalIdx++;
+                        }
+                        gy += lineH;
+                    }
+                    ctx.restore();
+                    continue;
+                }
+
+                // ---- CLASSIC / PILL / NEON ----
+                const lines = wrapText(ctx, c.text, maxW);
+                const blockH = lines.length * lineH;
+                let y0 = Math.max(lineH/2+10, Math.min(H-blockH+lineH/2-10,
+                         c.y * H - blockH/2 + lineH/2));
+
+                lines.forEach((ln, idx)=>{
+                    const y = y0 + idx * lineH;
+                    if (c.style === 'pill'){
+                        const tw = ctx.measureText(ln).width;
+                        const padX = px*0.55, padY = px*0.32, r = px*0.45;
+                        const bw = tw + padX*2, bh = px + padY*2;
+                        // anchor pill box to the xAlign position
+                        const bx = isLeft ? xDraw - padX
+                                 : isRight ? xDraw - tw - padX
+                                 : W/2 - bw/2;
+                        const by = y - bh/2;
+                        ctx.fillStyle = c.color === '#111111' ? 'rgba(255,255,255,.92)' : 'rgba(0,0,0,.75)';
+                        ctx.beginPath();
+                        ctx.roundRect(bx, by, bw, bh, r);
+                        ctx.fill();
+                        ctx.fillStyle = c.color;
+                        ctx.fillText(ln, xDraw, y);
+                    } else if (c.style === 'neon'){
+                        ctx.shadowColor = c.color; ctx.shadowBlur = px*0.65;
+                        ctx.fillStyle = c.color;
+                        ctx.fillText(ln, xDraw, y);
+                        ctx.fillText(ln, xDraw, y);
+                        ctx.shadowBlur = 0;
+                    } else { // classic
+                        ctx.lineWidth = Math.max(3, px*0.14);
+                        ctx.strokeStyle = c.color === '#111111' ? '#ffffff' : '#000000';
+                        ctx.lineJoin = 'round';
+                        ctx.strokeText(ln, xDraw, y);
+                        ctx.fillStyle = c.color;
+                        ctx.fillText(ln, xDraw, y);
+                    }
+                });
+                ctx.restore();
+            }
+        }
+
         // ---------------- Camera modal (live composite) ----------------
         const cameraModal       = document.getElementById('cameraModal');
         const cameraPreview     = document.getElementById('cameraPreview');   // hidden source <video>
@@ -982,7 +1465,7 @@
         function updateMusicBtn(){
             cameraMusicLabel.textContent = 'Play my song while recording: ' + (camMusicOn ? 'ON' : 'OFF');
             cameraMusicBtn.className = 'px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2 ' +
-                (camMusicOn ? 'bg-pink-600 border-pink-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-300');
+                (camMusicOn ? 'bg-amber-600 border-amber-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-300');
             cameraMusicHint.classList.toggle('hidden', !camMusicOn);
         }
         function updateMicBtn(){
@@ -1126,7 +1609,7 @@
 
         function updateModeUI(){
             const base = 'flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95 ';
-            const on  = 'bg-cyan-500 text-black border-cyan-400';
+            const on  = 'bg-orange-500 text-black border-orange-400';
             const off = 'bg-slate-800 text-slate-300 border-slate-700';
             modeCutoutBtn.className = base + (camMode==='cutout'?on:off);
             modeBubbleBtn.className = base + (camMode==='bubble'?on:off);
@@ -1151,7 +1634,7 @@
             // opts: {label, selected, onClick, bgImageUrl, icon}
             const b = document.createElement('button');
             b.className = 'flex-none w-14 h-20 rounded-lg overflow-hidden border-2 transition active:scale-95 relative ' +
-                (opts.selected ? 'border-cyan-400' : 'border-slate-700');
+                (opts.selected ? 'border-orange-400' : 'border-slate-700');
             if (opts.bgImageUrl){
                 b.style.backgroundImage = `url(${opts.bgImageUrl})`;
                 b.style.backgroundSize = 'cover'; b.style.backgroundPosition = 'center';
@@ -1555,9 +2038,12 @@
 
             const segs = [];
             let cIdx = 0;
+            const beatGridDur = state.bpm > 0
+                ? (60 / state.bpm) * (state.beatsPerSlide || 2) : 0;
             state.items.forEach(item => {
                 if (item.cycle?.enabled && item.type === 'image') {
-                    const per = Math.max(0.4, item.cycle.seconds || 3);
+                    const basePer = beatGridDur > 0 ? beatGridDur : Math.max(0.4, item.cycle.seconds || 3);
+                    const per = Math.max(0.2, basePer);
                     const n   = Math.max(1, Math.round((item.calcDuration || per) / per));
                     const dur = (item.calcDuration || (n * per)) / n;
                     let lastFilter = null;
@@ -1597,15 +2083,24 @@
             }
         }
 
-        DOM.renderBtn.addEventListener('click', async () => {
+        // Shared playback engine: record=true exports a file; record=false is a live preview.
+        let wakeLock = null;
+        const unloadGuard = (e)=>{ e.preventDefault(); e.returnValue = ''; };
+        async function startPlayback(record) {
             if (!state.audioFile) return showToast("Upload your Master Audio first!");
             if (state.items.length === 0) return showToast("Add photos or videos to the timeline!");
 
+            document.getElementById('renderOverlayTitle').textContent =
+                record ? 'Recording Video...' : 'Preview — nothing is being saved';
             DOM.renderOverlay.classList.remove('hidden');
             DOM.renderOverlay.classList.add('flex');
             state.isRendering = true;
             DOM.renderProgress.style.width = '0%';
             recordedChunks = [];
+
+            // keep the screen awake + warn before closing the tab mid-run
+            try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){ wakeLock = null; }
+            if (record) window.addEventListener('beforeunload', unloadGuard);
 
             const canvas = DOM.renderCanvas;
             const ctx = canvas.getContext('2d');
@@ -1618,34 +2113,38 @@
             if (ag.ctx.state === 'suspended') { try { await ag.ctx.resume(); } catch(e){} }
             state.items.forEach(it => { if (it.type === 'video') ensureVideoAudio(it); });
 
-            const canvasStream = canvas.captureStream(30);
-            const combined = new MediaStream([
-                ...canvasStream.getVideoTracks(),
-                ...ag.dest.stream.getAudioTracks()
-            ]);
-
-            const types = [
-                'video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/mp4',
-                'video/webm;codecs=h264,opus','video/webm;codecs=vp9,opus',
-                'video/webm;codecs=vp8,opus','video/webm'
-            ];
             let mime = '';
-            for (let t of types) { if (MediaRecorder.isTypeSupported(t)) { mime = t; break; } }
+            if (record) {
+                const canvasStream = canvas.captureStream(30);
+                const combined = new MediaStream([
+                    ...canvasStream.getVideoTracks(),
+                    ...ag.dest.stream.getAudioTracks()
+                ]);
 
-            mediaRecorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8000000 });
-            mediaRecorder.ondataavailable = e => { if (e.data.size>0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: mime || 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Storybook_${Date.now()}.${(mime.includes('mp4')?'mp4':'webm')}`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                setTimeout(()=>URL.revokeObjectURL(url), 4000);
-                DOM.renderOverlay.classList.add('hidden');
-                DOM.renderOverlay.classList.remove('flex');
-                state.isRendering = false;
-            };
+                const types = [
+                    'video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/mp4',
+                    'video/webm;codecs=h264,opus','video/webm;codecs=vp9,opus',
+                    'video/webm;codecs=vp8,opus','video/webm'
+                ];
+                for (let t of types) { if (MediaRecorder.isTypeSupported(t)) { mime = t; break; } }
+
+                mediaRecorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8000000 });
+                mediaRecorder.ondataavailable = e => { if (e.data.size>0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: mime || 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `BeeReel_${Date.now()}.${(mime.includes('mp4')?'mp4':'webm')}`;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+                    DOM.renderOverlay.classList.add('hidden');
+                    DOM.renderOverlay.classList.remove('flex');
+                    state.isRendering = false;
+                };
+            } else {
+                mediaRecorder = null;
+            }
 
             // Build flat segment list (cycled items expand into many sub-clips)
             // then turn segments into a timeline schedule.
@@ -1665,7 +2164,7 @@
                 if (it.type === 'video') { try { it.domElement.pause(); it.domElement.currentTime = 0; } catch(e){} }
             });
 
-            mediaRecorder.start();
+            if (record && mediaRecorder) mediaRecorder.start();
             DOM.masterAudioPlayer.currentTime = 0;
             try { await DOM.masterAudioPlayer.play(); }
             catch(err){ try { await ag.ctx.resume(); DOM.masterAudioPlayer.play(); } catch(e){} }
@@ -1771,6 +2270,7 @@
                 }
 
                 ctx.globalAlpha = 1;
+                drawCaptions(ctx, t);
                 animationFrameId = requestAnimationFrame(frame);
             }
 
@@ -1778,12 +2278,23 @@
                 state.isRendering = false;
                 try { DOM.masterAudioPlayer.pause(); } catch(e){}
                 state.items.forEach(it => { if (it.type==='video') { try{it.domElement.pause();}catch(e){} } });
-                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                if (AG && AG.masterGain) AG.masterGain.gain.value = 1;  // un-duck for next run
+                if (record && mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();   // onstop hides the overlay
+                } else {
+                    DOM.renderOverlay.classList.add('hidden');
+                    DOM.renderOverlay.classList.remove('flex');
+                }
                 cancelAnimationFrame(animationFrameId);
+                try { wakeLock?.release(); } catch(e){} wakeLock = null;
+                window.removeEventListener('beforeunload', unloadGuard);
             }
 
             animationFrameId = requestAnimationFrame(frame);
-        });
+        }
+
+        DOM.renderBtn.addEventListener('click', () => startPlayback(true));
+        document.getElementById('previewBtn').addEventListener('click', () => startPlayback(false));
 
         DOM.cancelRenderBtn.addEventListener('click', () => {
             state.isRendering = false;
@@ -1791,6 +2302,9 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
             try { DOM.masterAudioPlayer.pause(); } catch(e){}
             state.items.forEach(i => { if (i.type==='video'){ try{i.domElement.pause();}catch(e){} } });
+            if (AG && AG.masterGain) AG.masterGain.gain.value = 1;
+            try { wakeLock?.release(); } catch(e){} wakeLock = null;
+            window.removeEventListener('beforeunload', unloadGuard);
             DOM.renderOverlay.classList.add('hidden');
             DOM.renderOverlay.classList.remove('flex');
         });
@@ -1856,7 +2370,7 @@
 
         function setMode(mode){
             cs.mode = mode;
-            const on  = 'bg-pink-600 text-white border-pink-500';
+            const on  = 'bg-amber-600 text-white border-amber-500';
             const off = 'bg-slate-800 text-slate-300 border-slate-700';
             modeFillBtn.className = `py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${mode==='fill'?on:off}`;
             modeFitBtn.className  = `py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${mode==='fit'?on:off}`;
@@ -2026,6 +2540,158 @@
             cropModal.classList.add('hidden'); cropModal.classList.remove('flex');
             activeCropItemId=null; showToast("Framing applied!");
         });
+
+        // ---------------- Project save / restore (IndexedDB) ----------------
+        // Saves your whole project — song, every photo/video file (including camera
+        // takes), and all settings — so a refresh or crash doesn't lose your work.
+        const DB_NAME = 'storybook-studio', DB_STORE = 'project';
+        function openDB(){
+            return new Promise((res, rej)=>{
+                const r = indexedDB.open(DB_NAME, 1);
+                r.onupgradeneeded = ()=> r.result.createObjectStore(DB_STORE);
+                r.onsuccess = ()=> res(r.result);
+                r.onerror = ()=> rej(r.error);
+            });
+        }
+        function dbPut(key, val){
+            return openDB().then(db => new Promise((res, rej)=>{
+                const tx = db.transaction(DB_STORE,'readwrite');
+                tx.objectStore(DB_STORE).put(val, key);
+                tx.oncomplete = ()=>{ db.close(); res(); };
+                tx.onerror = ()=>{ db.close(); rej(tx.error); };
+            }));
+        }
+        function dbGet(key){
+            return openDB().then(db => new Promise((res, rej)=>{
+                const tx = db.transaction(DB_STORE,'readonly');
+                const rq = tx.objectStore(DB_STORE).get(key);
+                rq.onsuccess = ()=>{ db.close(); res(rq.result); };
+                rq.onerror = ()=>{ db.close(); rej(rq.error); };
+            }));
+        }
+        function dbDel(key){
+            return openDB().then(db => new Promise((res)=>{
+                const tx = db.transaction(DB_STORE,'readwrite');
+                tx.objectStore(DB_STORE).delete(key);
+                tx.oncomplete = ()=>{ db.close(); res(); };
+                tx.onerror = ()=>{ db.close(); res(); };
+            }));
+        }
+
+        let saveTimer = null, restoring = false;
+        function scheduleSave(){
+            if (restoring) return;
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveProject, 1500);
+        }
+        async function saveProject(){
+            try {
+                const payload = {
+                    when: Date.now(),
+                    audioFile: state.audioFile || null,
+                    transDur: state.transDur,
+                    bpm: state.bpm,
+                    beatsPerSlide: state.beatsPerSlide,
+                    captions: state.captions,
+                    items: state.items.map(it => ({
+                        type: it.type, file: it.file,
+                        nativeDuration: it.nativeDuration,
+                        customDuration: it.customDuration,
+                        loop: it.loop, mute: it.mute,
+                        fitMode: it.fitMode, zoom: it.zoom, offX: it.offX, offY: it.offY,
+                        filter: it.filter, transition: it.transition,
+                        cycle: it.cycle, fromCamera: it.fromCamera
+                    }))
+                };
+                await dbPut('current', payload);
+            } catch(e){ /* storage full or blocked — fail quietly */ }
+        }
+        async function restoreProject(p){
+            restoring = true;
+            try {
+                if (p.audioFile){
+                    state.audioFile = p.audioFile;
+                    DOM.audioFileName.textContent = p.audioFile.name || 'Restored song';
+                    DOM.masterAudioPlayer.src = URL.createObjectURL(p.audioFile);
+                    await new Promise(res => {
+                        DOM.masterAudioPlayer.onloadedmetadata = ()=>{
+                            state.audioDuration = DOM.masterAudioPlayer.duration;
+                            DOM.audioStats.classList.remove('hidden');
+                            DOM.audioDurationTxt.textContent = state.audioDuration.toFixed(1);
+                            res();
+                        };
+                        setTimeout(res, 3000);
+                    });
+                }
+                if (typeof p.transDur === 'number'){
+                    state.transDur = p.transDur;
+                    DOM.transSpeed.value = p.transDur;
+                    DOM.transSpeedTxt.textContent = p.transDur.toFixed(2)+'s';
+                }
+                if (typeof p.bpm === 'number' && p.bpm > 0){
+                    state.bpm = p.bpm; state.beatsPerSlide = p.beatsPerSlide || 2;
+                    document.getElementById('bpmInput').value = state.bpm;
+                    document.getElementById('beatsPerSlide').value = state.beatsPerSlide;
+                    document.getElementById('bpsTxt').textContent = state.beatsPerSlide+' beats';
+                    document.getElementById('bpmActiveBadge').classList.remove('hidden');
+                    document.getElementById('bpmStatus').textContent = bpmStatus();
+                }
+                if (Array.isArray(p.captions)){
+                    state.captions = p.captions;
+                    renderCaptionsUI();
+                }
+                for (const s of (p.items||[])){
+                    if (!s.file) continue;
+                    await addMediaFile(s.file, {
+                        knownDuration: s.nativeDuration || 0,
+                        defaultMute: s.mute,
+                        fromCamera: s.fromCamera
+                    });
+                    const it = state.items[state.items.length-1];
+                    Object.assign(it, {
+                        customDuration: s.customDuration ?? null,
+                        loop: s.loop, mute: s.mute,
+                        fitMode: s.fitMode || it.fitMode,
+                        zoom: s.zoom ?? 1, offX: s.offX ?? 0, offY: s.offY ?? 0,
+                        filter: s.filter || 'none',
+                        transition: s.transition || 'fade',
+                        cycle: s.cycle || null
+                    });
+                }
+                updateMath(); renderTimelineUI();
+                showToast('Project restored!');
+            } catch(e){ showToast('Restore had a problem — some items may be missing.'); }
+            restoring = false;
+        }
+
+        // auto-save on every timeline redraw (fires after each meaningful change)
+        const _origRenderTimelineUI = renderTimelineUI;
+        renderTimelineUI = function(){ _origRenderTimelineUI(); scheduleSave(); };
+        DOM.audioInput.addEventListener('change', ()=> setTimeout(scheduleSave, 500));
+        DOM.transSpeed.addEventListener('input', scheduleSave);
+        document.getElementById('beatsPerSlide').addEventListener('input', scheduleSave);
+
+        // offer restore on load
+        (async ()=>{
+            try {
+                const p = await dbGet('current');
+                if (p && ((p.items && p.items.length) || p.audioFile)){
+                    const banner = document.getElementById('restoreBanner');
+                    const ago = Math.max(1, Math.round((Date.now()-p.when)/60000));
+                    document.getElementById('restoreInfo').textContent =
+                        `${(p.items||[]).length} item(s)${p.audioFile ? ' + song' : ''} · saved ${ago < 60 ? ago+' min' : Math.round(ago/60)+' hr'} ago`;
+                    banner.classList.remove('hidden'); banner.classList.add('flex');
+                    document.getElementById('restoreYesBtn').onclick = ()=>{
+                        banner.classList.add('hidden'); banner.classList.remove('flex');
+                        restoreProject(p);
+                    };
+                    document.getElementById('restoreNoBtn').onclick = ()=>{
+                        banner.classList.add('hidden'); banner.classList.remove('flex');
+                        dbDel('current');
+                    };
+                }
+            } catch(e){ /* IndexedDB unavailable — app still works, just no persistence */ }
+        })();
     </script>
 </body>
 </html>
