@@ -2614,6 +2614,9 @@
             try { await DOM.masterAudioPlayer.play(); }
             catch(err){ try { await ag.ctx.resume(); DOM.masterAudioPlayer.play(); } catch(e){} }
 
+            // The TIMELINE length drives the video — not the song. The song plays
+            // underneath and just finishes naturally if it's shorter than the clips.
+            const renderStart = performance.now();
             let lastIdx = -1;
 
             function findIndex(t) {
@@ -2635,12 +2638,12 @@
 
             function frame() {
                 if (!state.isRendering) return;
-                const t = DOM.masterAudioPlayer.currentTime;
+                const t = (performance.now() - renderStart) / 1000;
 
-                const pct = Math.min(100, (t / Math.min(total, state.audioDuration)) * 100);
+                const pct = Math.min(100, (t / total) * 100);
                 DOM.renderProgress.style.width = pct + '%';
 
-                if (DOM.masterAudioPlayer.ended || t >= state.audioDuration - 0.03 || t >= total - 0.01) {
+                if (t >= total - 0.01) {
                     finish(); return;
                 }
 
