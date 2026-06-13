@@ -260,6 +260,61 @@
             </div>
         </div>
 
+        <!-- SCREEN: LYRICS -->
+        <div id="screen-lyrics" class="screen flex-col h-full bg-slate-900">
+            <div class="flex-1 overflow-y-auto p-4 scrollable-area pb-24">
+                <div class="max-w-md mx-auto w-full">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-full bg-yellow-500/20 flex items-center justify-center">🎤</div>
+                        <h2 class="text-lg font-bold text-white">Lyrics & Sync</h2>
+                    </div>
+
+                    <!-- Paste box -->
+                    <label class="text-[11px] text-slate-400 font-semibold">Paste your lyrics — one line per line</label>
+                    <textarea id="lyricsInput" rows="6" placeholder="Type or paste lyrics here…&#10;Each line becomes its own on-screen line"
+                        class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500 resize-y"></textarea>
+                    <button id="loadLyricsBtn" class="mt-2 w-full py-2.5 rounded-xl text-sm font-bold bg-slate-700 hover:bg-slate-600 text-white active:scale-95 transition">Load lines →</button>
+
+                    <!-- Style row -->
+                    <div id="lyricStyleWrap" class="hidden mt-5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">Lyric style</span>
+                            <button id="lyricsEnabledBtn" class="text-[11px] font-bold px-3 py-1 rounded-full border transition active:scale-95">Show on video: ON</button>
+                        </div>
+                        <div class="flex gap-1.5 mt-2" id="lyricStyleRow"></div>
+                        <div class="flex gap-2 items-center mt-2" id="lyricColorRow"></div>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="text-[11px] text-slate-400">Size
+                                <input id="lyricSize" type="range" min="0.04" max="0.11" step="0.005" value="0.062" class="w-full accent-amber-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer mt-1"></label>
+                            <label class="text-[11px] text-slate-400">Vertical position
+                                <input id="lyricY" type="range" min="0.1" max="0.92" step="0.01" value="0.8" class="w-full accent-yellow-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer mt-1"></label>
+                        </div>
+                    </div>
+
+                    <!-- Tap to sync -->
+                    <div id="lyricSyncWrap" class="hidden mt-5 bg-slate-800 rounded-2xl p-4 border border-slate-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">🎯 Tap to Sync</span>
+                            <span id="lyricSyncTime" class="font-mono text-amber-400 text-sm">0:00</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mb-3">Press Start — the first line shows right away. Tap <b>Line ended</b> the moment each line finishes and the next should appear. Fine-tune any time after.</p>
+                        <button id="lyricSyncSliceBtn" class="hidden w-full mb-3 py-2 rounded-xl text-[11px] font-bold border transition active:scale-95"></button>
+                        <div class="bg-slate-900 rounded-xl p-3 mb-3 min-h-[3rem] flex items-center justify-center text-center">
+                            <span id="lyricSyncCurrent" class="text-white font-semibold text-sm">Press Start to begin</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="lyricSyncStartBtn" class="py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-500 text-black active:scale-95 transition">▶ Start sync</button>
+                            <button id="lyricMarkBtn" class="py-3 rounded-xl text-sm font-bold bg-amber-600 text-white active:scale-95 transition disabled:opacity-40" disabled>👆 Line ended →</button>
+                        </div>
+                        <button id="lyricSyncStopBtn" class="hidden mt-2 w-full py-2 rounded-xl text-xs font-semibold bg-slate-700 text-slate-300 active:scale-95 transition">■ Stop</button>
+                    </div>
+
+                    <!-- Line list -->
+                    <div id="lyricLines" class="mt-5 space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- SCREEN 3: EXPORT -->
         <div id="screen-export" class="screen p-6 scrollable-area overflow-y-auto">
             <div class="max-w-md mx-auto w-full">
@@ -350,6 +405,10 @@
         <button onclick="switchTab('text')" id="tab-text" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 8l4-4h6a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h2v4z"></path></svg>
             <span class="text-[10px] font-semibold">Text</span>
+        </button>
+        <button onclick="switchTab('lyrics')" id="tab-lyrics" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+            <span class="text-[10px] font-semibold">Lyrics</span>
         </button>
         <button onclick="switchTab('export')" id="tab-export" class="flex-1 flex flex-col items-center justify-center gap-1 text-slate-500 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -607,6 +666,7 @@
             audioFile: null,
             items: [],
             captions: [],
+            lyrics: { enabled:true, style:'classic', color:'#ffffff', size:0.062, y:0.8, lines:[] },
             isRendering: false,
             transDur: 0.5,
             bpm: 0,
@@ -680,6 +740,7 @@
             document.getElementById('screen-' + tabName).classList.add('active');
             document.getElementById('tab-' + tabName).classList.remove('text-slate-500');
             document.getElementById('tab-' + tabName).classList.add('text-amber-500');
+            if (tabName === 'lyrics' && typeof refreshSliceToggle === 'function') refreshSliceToggle();
         };
 
         new Sortable(DOM.timeline, {
@@ -810,7 +871,8 @@
                 filter: 'none',
                 transition: 'fade',
                 cycle: null,
-                fromCamera: !!opts.fromCamera
+                fromCamera: !!opts.fromCamera,
+                songStart: (opts.songStart != null) ? opts.songStart : null
             });
         }
 
@@ -1393,6 +1455,237 @@
                 });
                 ctx.restore();
             }
+        }
+
+        // ---------------- Lyrics & Sync (NEW) ----------------
+        const LY = () => state.lyrics;
+
+        function updateLyricStyleUI(){
+            const wrap = document.getElementById('lyricStyleWrap');
+            const sync = document.getElementById('lyricSyncWrap');
+            const has = LY().lines.length > 0;
+            wrap.classList.toggle('hidden', !has);
+            sync.classList.toggle('hidden', !has);
+            // style buttons
+            const sr = document.getElementById('lyricStyleRow'); sr.innerHTML='';
+            Object.keys(CAP_STYLES).forEach(s=>{
+                const b=document.createElement('button');
+                b.className='flex-1 py-1.5 rounded-lg text-[11px] font-bold border transition active:scale-95 '+
+                    (LY().style===s?'bg-amber-500 text-black border-amber-400':'bg-slate-900 text-slate-300 border-slate-700');
+                b.textContent=CAP_STYLES[s];
+                b.onclick=()=>{ LY().style=s; updateLyricStyleUI(); scheduleSave(); };
+                sr.appendChild(b);
+            });
+            // color buttons
+            const cr = document.getElementById('lyricColorRow'); cr.innerHTML='';
+            CAP_COLORS.forEach(col=>{
+                const b=document.createElement('button');
+                b.className='w-7 h-7 rounded-full border-2 transition active:scale-90 '+
+                    (LY().color===col?'border-amber-400 scale-110':'border-slate-600');
+                b.style.background=col;
+                b.onclick=()=>{ LY().color=col; updateLyricStyleUI(); scheduleSave(); };
+                cr.appendChild(b);
+            });
+            // enabled toggle
+            const eb=document.getElementById('lyricsEnabledBtn');
+            eb.textContent='Show on video: '+(LY().enabled?'ON':'OFF');
+            eb.className='text-[11px] font-bold px-3 py-1 rounded-full border transition active:scale-95 '+
+                (LY().enabled?'bg-amber-600 border-amber-500 text-white':'bg-slate-800 border-slate-600 text-slate-300');
+        }
+
+        function renderLyricLines(){
+            const box=document.getElementById('lyricLines'); box.innerHTML='';
+            LY().lines.forEach((ln, idx)=>{
+                const row=document.createElement('div');
+                const synced = ln.t !== null && ln.t !== undefined;
+                row.className='flex items-center gap-2 bg-slate-800 rounded-lg p-2 border '+
+                    (synced?'border-amber-500/40':'border-slate-700');
+                row.innerHTML=`
+                    <span class="text-[10px] font-mono text-slate-500 w-5 text-center shrink-0">${idx+1}</span>
+                    <input data-k="text" value="${(ln.text||'').replace(/"/g,'&quot;')}"
+                        class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500">
+                    <input data-k="t" type="number" step="0.1" min="0" placeholder="--" value="${synced?ln.t.toFixed(1):''}"
+                        class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-amber-300 font-mono text-center focus:outline-none focus:border-amber-500">
+                    <span class="text-[10px] text-slate-500 shrink-0">s</span>
+                    <button data-act="del" class="text-slate-500 hover:text-red-400 shrink-0 px-1">✕</button>`;
+                row.querySelector('[data-k="text"]').addEventListener('input', e=>{ ln.text=e.target.value; scheduleSave(); });
+                row.querySelector('[data-k="t"]').addEventListener('input', e=>{
+                    const v=parseFloat(e.target.value); ln.t = isNaN(v)?null:Math.max(0,v); scheduleSave();
+                });
+                row.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+                    LY().lines.splice(idx,1); renderLyricLines(); updateLyricStyleUI(); scheduleSave();
+                });
+                box.appendChild(row);
+            });
+        }
+
+        document.getElementById('loadLyricsBtn').addEventListener('click', ()=>{
+            const raw=document.getElementById('lyricsInput').value;
+            const lines=raw.split('\n').map(s=>s.trim()).filter(Boolean);
+            if(!lines.length){ showToast('Paste some lyrics first.'); return; }
+            // preserve existing times where the text matches, else null
+            const old=LY().lines;
+            LY().lines = lines.map((text,i)=>{
+                const match = old.find(o=>o.text===text);
+                return { text, t: match ? match.t : null };
+            });
+            renderLyricLines(); updateLyricStyleUI(); scheduleSave();
+            showToast(`${lines.length} lines loaded — now tap to sync.`);
+        });
+        document.getElementById('lyricsEnabledBtn').addEventListener('click', ()=>{ LY().enabled=!LY().enabled; updateLyricStyleUI(); scheduleSave(); });
+        document.getElementById('lyricSize').addEventListener('input', e=>{ LY().size=parseFloat(e.target.value); scheduleSave(); });
+        document.getElementById('lyricY').addEventListener('input', e=>{ LY().y=parseFloat(e.target.value); scheduleSave(); });
+
+        // ----- Tap to sync -----
+        let lyAudio=null, lySyncing=false, lyIdx=0, lyRaf=null;
+        function ensureLyAudio(){
+            const src=DOM.masterAudioPlayer.currentSrc||DOM.masterAudioPlayer.src;
+            if(!src) return null;
+            if(!lyAudio){ lyAudio=new Audio(); }
+            if(lyAudio.src!==src) lyAudio.src=src;
+            return lyAudio;
+        }
+        function lyTickUI(){
+            if(!lySyncing) return;
+            document.getElementById('lyricSyncTime').textContent = fmtLy(lyAudio.currentTime);
+            // when syncing to a slice, stop at the slice end
+            if (lySyncSlice && sliceReady && lyAudio.currentTime >= sliceEnd - 0.03){
+                stopLySync();
+                showToast('Reached the end of your clip section.');
+                return;
+            }
+            lyRaf=requestAnimationFrame(lyTickUI);
+        }
+        const fmtLy = s => (s/60|0)+':'+String(Math.floor(s%60)).padStart(2,'0');
+        function showSyncCurrent(){
+            const el=document.getElementById('lyricSyncCurrent');
+            const lines=LY().lines;
+            if(lyIdx<lines.length){
+                const last = lyIdx === lines.length-1;
+                el.innerHTML=`<span class="text-amber-300">On screen:</span> ${lines[lyIdx].text}`
+                    + `<br><span class="text-[10px] text-slate-500">tap when this line ${last?'finishes':'ends & the next comes up'}</span>`;
+            }
+            else { el.textContent='✓ Done!'; }
+        }
+        // sync to the clip slice instead of the whole song
+        let lySyncSlice = null;
+        function refreshSliceToggle(){
+            const btn = document.getElementById('lyricSyncSliceBtn');
+            if (sliceReady && (sliceEnd - sliceStart) > 0.3){
+                btn.classList.remove('hidden');
+                if (lySyncSlice === null) lySyncSlice = true; // default on once a slice exists
+                btn.textContent = lySyncSlice
+                    ? `🎯 Syncing to your clip section (${fmtLy(sliceStart)}–${fmtLy(sliceEnd)})`
+                    : '🎵 Syncing to the whole song';
+                btn.className = 'w-full mb-3 py-2 rounded-xl text-[11px] font-bold border transition active:scale-95 ' +
+                    (lySyncSlice ? 'bg-amber-600 border-amber-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300');
+            } else {
+                btn.classList.add('hidden');
+                lySyncSlice = false;
+            }
+        }
+        document.getElementById('lyricSyncSliceBtn').addEventListener('click', ()=>{
+            lySyncSlice = !lySyncSlice; refreshSliceToggle();
+        });
+
+        document.getElementById('lyricSyncStartBtn').addEventListener('click', ()=>{
+            const a=ensureLyAudio(); if(!a){ showToast('Upload your song first (Music tab).'); return; }
+            const lines=LY().lines;
+            if(!lines.length){ showToast('Load some lyric lines first.'); return; }
+            lySyncing=true; lyIdx=0;
+            const from = (lySyncSlice && sliceReady) ? sliceStart : 0;
+            // first line is on screen from the very start; clear any old end markers
+            lines.forEach(l=>{ delete l.end; });
+            lines[0].t = parseFloat(from.toFixed(2));
+            a.currentTime = from; a.play().catch(()=>{});
+            renderLyricLines();
+            document.getElementById('lyricMarkBtn').disabled=false;
+            document.getElementById('lyricMarkBtn').textContent='👆 Line ended →';
+            document.getElementById('lyricSyncStopBtn').classList.remove('hidden');
+            document.getElementById('lyricSyncStartBtn').textContent='● Syncing…';
+            showSyncCurrent();
+            lyTickUI();
+        });
+        document.getElementById('lyricMarkBtn').addEventListener('click', ()=>{
+            if(!lySyncing) return;
+            const lines=LY().lines;
+            const ct = parseFloat(lyAudio.currentTime.toFixed(2));
+            if(lyIdx < lines.length-1){
+                // current line just ended -> next line starts now
+                lines[lyIdx+1].t = ct;
+                lyIdx++;
+                renderLyricLines(); showSyncCurrent();
+            } else {
+                // last line just ended -> record its disappear time and finish
+                lines[lyIdx].end = ct;
+                renderLyricLines();
+                stopLySync(); showToast('All lines synced! 🎤');
+            }
+        });
+        function stopLySync(){
+            lySyncing=false; cancelAnimationFrame(lyRaf);
+            if(lyAudio){ try{lyAudio.pause();}catch(e){} }
+            document.getElementById('lyricMarkBtn').disabled=true;
+            document.getElementById('lyricMarkBtn').textContent='👆 Line ended →';
+            document.getElementById('lyricSyncStopBtn').classList.add('hidden');
+            document.getElementById('lyricSyncStartBtn').textContent='▶ Start sync';
+            scheduleSave();
+        }
+        document.getElementById('lyricSyncStopBtn').addEventListener('click', stopLySync);
+
+        // Draw the active lyric line at time t (one line at a time, fading).
+        function drawLyrics(ctx, t){
+            const L=LY();
+            if(!L.enabled || !L.lines.length) return;
+            // find the current line: latest one whose time has passed
+            const timed=L.lines.filter(l=>l.t!==null&&l.t!==undefined).sort((a,b)=>a.t-b.t);
+            if(!timed.length) return;
+            let cur=null, next=null;
+            for(let i=0;i<timed.length;i++){
+                if(t>=timed[i].t){ cur=timed[i]; next=timed[i+1]||null; }
+            }
+            if(!cur) return;
+            const fade=0.4;
+            const since=t-cur.t;
+            // fade out at the next line's start, OR (for the last line) at its end marker
+            const endAt = next ? next.t : (cur.end != null ? cur.end : null);
+            const until = endAt != null ? (endAt - t) : 999;
+            let alpha=Math.min(1, since/fade);
+            if(endAt != null) alpha=Math.min(alpha, Math.max(0, until/fade));
+            if(alpha<=0) return;
+
+            const W=DOM.renderCanvas.width, H=DOM.renderCanvas.height;
+            const px=Math.round(L.size*H), lineH=px*1.28;
+            ctx.save();
+            ctx.globalAlpha=alpha;
+            ctx.font=`800 ${px}px Inter, sans-serif`;
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            const lines=wrapText(ctx, cur.text, W*0.86);
+            const blockH=lines.length*lineH;
+            let y0=Math.max(lineH/2+10, Math.min(H-blockH+lineH/2-10, L.y*H-blockH/2+lineH/2));
+            lines.forEach((ln,i)=>{
+                const y=y0+i*lineH;
+                if(L.style==='pill'){
+                    const tw=ctx.measureText(ln).width, padX=px*0.55, padY=px*0.32, r=px*0.45;
+                    const bw=tw+padX*2, bh=px+padY*2;
+                    ctx.fillStyle=L.color==='#111111'?'rgba(255,255,255,.92)':'rgba(0,0,0,.75)';
+                    ctx.beginPath(); ctx.roundRect(W/2-bw/2, y-bh/2, bw, bh, r); ctx.fill();
+                    ctx.fillStyle=L.color; ctx.fillText(ln, W/2, y);
+                } else if(L.style==='neon'){
+                    ctx.shadowColor=L.color; ctx.shadowBlur=px*0.65; ctx.fillStyle=L.color;
+                    ctx.fillText(ln,W/2,y); ctx.fillText(ln,W/2,y); ctx.shadowBlur=0;
+                } else if(L.style==='karaoke'){
+                    // for full-line lyrics, karaoke style = bold glow highlight
+                    ctx.shadowColor=L.color; ctx.shadowBlur=px*0.4;
+                    ctx.lineWidth=Math.max(3,px*0.14); ctx.strokeStyle='#000'; ctx.lineJoin='round';
+                    ctx.strokeText(ln,W/2,y); ctx.fillStyle=L.color; ctx.fillText(ln,W/2,y); ctx.shadowBlur=0;
+                } else {
+                    ctx.lineWidth=Math.max(3,px*0.14);
+                    ctx.strokeStyle=L.color==='#111111'?'#fff':'#000'; ctx.lineJoin='round';
+                    ctx.strokeText(ln,W/2,y); ctx.fillStyle=L.color; ctx.fillText(ln,W/2,y);
+                }
+            });
+            ctx.restore();
         }
 
         // ---------------- Camera modal (live composite) ----------------
@@ -2019,8 +2312,10 @@
             const ext = (camRecMime && camRecMime.includes('mp4')) ? 'mp4' : 'webm';
             const file = new File([camRecordedBlob], `camera-${Date.now()}.${ext}`, { type: camRecMime || 'video/webm' });
             const dur = camRecordedSec > 0.3 ? camRecordedSec : 5;
+            // remember where in the song this clip's audio started (for lyric sync)
+            const songStart = (camMusicOn && sliceReady) ? sliceStart : null;
             closeCamera();
-            await addMediaFile(file, { knownDuration: dur, defaultMute: false, fromCamera: true });
+            await addMediaFile(file, { knownDuration: dur, defaultMute: false, fromCamera: true, songStart });
             updateMath(); renderTimelineUI();
             showToast(`Added your ${dur.toFixed(1)}s clip!`);
         }
@@ -2421,6 +2716,14 @@
 
                 ctx.globalAlpha = 1;
                 drawCaptions(ctx, t);
+                // Lyrics follow the SONG position actually being heard. During a
+                // camera clip with a baked song slice, that's the slice position,
+                // not the master timeline position.
+                let songT = t;
+                if (cur.item.fromCamera && cur.item.songStart != null && !cur.item.mute){
+                    songT = cur.item.songStart + localSec;
+                }
+                drawLyrics(ctx, songT);
                 animationFrameId = requestAnimationFrame(frame);
             }
 
@@ -2743,6 +3046,7 @@
                     bpm: state.bpm,
                     beatsPerSlide: state.beatsPerSlide,
                     captions: state.captions,
+                    lyrics: state.lyrics,
                     items: state.items.map(it => ({
                         type: it.type, file: it.file,
                         nativeDuration: it.nativeDuration,
@@ -2750,7 +3054,7 @@
                         loop: it.loop, mute: it.mute,
                         fitMode: it.fitMode, zoom: it.zoom, offX: it.offX, offY: it.offY,
                         filter: it.filter, transition: it.transition,
-                        cycle: it.cycle, fromCamera: it.fromCamera
+                        cycle: it.cycle, fromCamera: it.fromCamera, songStart: it.songStart
                     }))
                 };
                 await dbPut('current', payload);
@@ -2790,12 +3094,20 @@
                     state.captions = p.captions;
                     renderCaptionsUI();
                 }
+                if (p.lyrics && typeof p.lyrics === 'object'){
+                    state.lyrics = Object.assign(state.lyrics, p.lyrics);
+                    if (state.lyrics.lines && state.lyrics.lines.length){
+                        document.getElementById('lyricsInput').value = state.lyrics.lines.map(l=>l.text).join('\n');
+                        renderLyricLines(); updateLyricStyleUI();
+                    }
+                }
                 for (const s of (p.items||[])){
                     if (!s.file) continue;
                     await addMediaFile(s.file, {
                         knownDuration: s.nativeDuration || 0,
                         defaultMute: s.mute,
-                        fromCamera: s.fromCamera
+                        fromCamera: s.fromCamera,
+                        songStart: s.songStart
                     });
                     const it = state.items[state.items.length-1];
                     Object.assign(it, {
