@@ -367,8 +367,8 @@
                 <div id="renderProgress" class="h-full bg-gradient-to-r from-amber-500 to-yellow-500 w-0 transition-all duration-300"></div>
             </div>
         </div>
-        <button id="cancelRenderBtn" class="mt-8 text-slate-400 hover:text-white px-8 py-3 rounded-full border border-slate-600 hover:bg-slate-800 transition active:scale-95">
-            Cancel Process
+        <button id="cancelRenderBtn" class="mt-8 bg-red-600/80 hover:bg-red-500 text-white font-bold px-8 py-3 rounded-full border border-red-500 transition active:scale-95 shadow-lg shadow-red-500/20">
+            Stop & Save Video
         </button>
     </div>
 
@@ -2195,10 +2195,6 @@
                 const pct = Math.min(100, (t / Math.min(total, state.audioDuration)) * 100);
                 DOM.renderProgress.style.width = pct + '%';
 
-                if (DOM.masterAudioPlayer.ended || t >= state.audioDuration - 0.03 || t >= total - 0.01) {
-                    finish(); return;
-                }
-
                 const i = findIndex(t);
                 const cur = tl[i];
                 const localSec = t - cur.start;
@@ -2305,8 +2301,11 @@
             if (AG && AG.masterGain) AG.masterGain.gain.value = 1;
             try { wakeLock?.release(); } catch(e){} wakeLock = null;
             window.removeEventListener('beforeunload', unloadGuard);
-            DOM.renderOverlay.classList.add('hidden');
-            DOM.renderOverlay.classList.remove('flex');
+            // The overlay will hide automatically inside the mediaRecorder.onstop handler
+            if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+                DOM.renderOverlay.classList.add('hidden');
+                DOM.renderOverlay.classList.remove('flex');
+            }
         });
 
         // ---------------- Crop modal (rebuilt: canvas WYSIWYG + Fill/Fit) ----------------
