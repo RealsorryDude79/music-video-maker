@@ -547,8 +547,12 @@
 
         <!-- Background picker -->
         <div id="cameraBgBar" class="shrink-0 bg-black/70 border-b border-white/10">
-            <div class="px-3 pt-2 text-[11px] text-slate-400 font-semibold">Background — pick a photo to stand in front of</div>
+            <div class="px-3 pt-2 text-[11px] text-slate-400 font-semibold">Background — a photo, or 🖥️ Screen to capture a tab/window (computer only)</div>
             <div id="cameraBgStrip" class="px-3 py-2 flex gap-2 overflow-x-auto scrollable-area"></div>
+            <button id="liveHelpBtn" class="mx-3 mb-1 text-[11px] text-amber-300/90 font-semibold flex items-center gap-1 active:scale-95 transition">
+                <span>ℹ️ Adding a TikTok Live?</span><span id="liveHelpCaret">▸</span>
+            </button>
+            <div id="liveHelpPanel" class="hidden mx-3 mb-2 p-3 rounded-lg bg-slate-900/80 border border-amber-700/40 text-[11px] leading-relaxed text-slate-200"></div>
             <div id="cameraModeRow" class="hidden px-3 pb-2 gap-2">
                 <button id="modeCutoutBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">✂️ Replace</button>
                 <button id="modeBubbleBtn" class="flex-1 py-2 rounded-lg text-[11px] font-bold border transition active:scale-95">⭕ Bubble</button>
@@ -1736,8 +1740,13 @@
 
         // compositing state
         let camActive = false, camRafId = null;
-        let camBg = { type: 'none', img: null };   // 'none' | 'photo'
+        let camBg = { type: 'none', img: null };   // 'none' | 'photo' | 'screen'
         let camMode = 'bubble';                     // 'cutout' | 'bubble' | 'photoonly' (when a bg is set)
+        let screenStream = null;                    // getDisplayMedia stream (desktop only)
+        const screenVideo = document.createElement('video');
+        screenVideo.muted = true; screenVideo.playsInline = true; screenVideo.autoplay = true;
+        let screenAudioSrc = null, screenAudioGain = null;
+        const SCREEN_SUPPORTED = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
         let camBubble = { x: 0.5, y: 0.62, size: 0.55 }; // normalized position + size of the bubble
         // offscreen canvas for the masked person
         const personCanvas = document.createElement('canvas');
@@ -1778,9 +1787,12 @@
                 camRecDest = camAC.createMediaStreamDestination();
                 camMusicGain = camAC.createGain(); camMusicGain.gain.value = 0;
                 camMicGain = camAC.createGain();   camMicGain.gain.value = micOn ? 1 : 0;
+                screenAudioGain = camAC.createGain(); screenAudioGain.gain.value = 1;
                 camMusicGain.connect(camRecDest);        // song into the recording
                 camMusicGain.connect(camAC.destination); // and out the speakers/headphones so you hear it
                 camMicGain.connect(camRecDest);          // mic into the recording only (no monitor = no feedback)
+                screenAudioGain.connect(camRecDest);     // captured tab/screen audio into the recording
+                screenAudioGain.connect(camAC.destination); // and out so you hear the live too
             } catch(e){ camAC = null; }
             return camAC;
         }
@@ -2025,7 +2037,9 @@
         }
         function drawCamBackground(ctx){
             const W = cameraCanvas.width, H = cameraCanvas.height;
-            if (camBg.type === 'photo' && camBg.img && (camBg.img.complete || camBg.img.naturalWidth)){
+            if (camBg.type === 'screen' && screenVideo.videoWidth){
+                drawCover(ctx, screenVideo, screenVideo.videoWidth, screenVideo.videoHeight, W, H);
+            } else if (camBg.type === 'photo' && camBg.img && (camBg.img.complete || camBg.img.naturalWidth)){
                 drawCover(ctx, camBg.img, camBg.img.naturalWidth || camBg.img.width,
                                           camBg.img.naturalHeight || camBg.img.height, W, H);
             } else {
@@ -2096,7 +2110,7 @@
 
         function camLoop(){
             if (!camActive) return;
-            const useCutout = (camBg.type === 'photo' && camMode === 'cutout' && segReady);
+            const useCutout = ((camBg.type === 'photo' || camBg.type === 'screen') && camMode === 'cutout' && segReady);
             if (useCutout){
                 if (!segBusy && cameraPreview.videoWidth){
                     segBusy = true;
@@ -2142,21 +2156,89 @@
             modeCutoutBtn.className = base + (camMode==='cutout'?on:off);
             modeBubbleBtn.className = base + (camMode==='bubble'?on:off);
             modePhotoBtn.className  = base + (camMode==='photoonly'?on:off);
+            modePhotoBtn.innerHTML = (camBg.type==='screen') ? '🖥️ Screen only' : '🖼️ Photo only';
             // bubble size/drag controls only matter in bubble mode
-            const showBubble = (camBg.type==='photo' && camMode==='bubble');
+            const showBubble = ((camBg.type==='photo' || camBg.type==='screen') && camMode==='bubble');
             cameraBubbleRow.classList.toggle('hidden', !showBubble);
             cameraBubbleRow.classList.toggle('flex', showBubble);
         }
 
         function setCamBg(type, img){
             camBg = { type, img: img || null };
-            const showModes = (type === 'photo');
+            const showModes = (type === 'photo' || type === 'screen');
             cameraModeRow.classList.toggle('hidden', !showModes);
             cameraModeRow.classList.toggle('flex', showModes);
-            if (type === 'photo' && camMode === 'cutout') initSeg();
+            if (showModes && camMode === 'cutout') initSeg();
             updateModeUI();
             buildBgStrip();
         }
+
+        // ----- Screen / tab capture (desktop only) -----
+        async function startScreenCapture(){
+            if (!SCREEN_SUPPORTED){ showToast('Screen capture only works on a computer browser.'); return; }
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { frameRate: 30 },
+                    audio: true                      // grab the tab's/system audio too
+                });
+                stopScreenCapture(false);            // clear any previous
+                screenStream = stream;
+                screenVideo.srcObject = stream;
+                try { await screenVideo.play(); } catch(e){}
+                // wire the captured audio into the recording graph
+                const aTracks = stream.getAudioTracks();
+                if (aTracks.length){
+                    ensureCamAudio();
+                    if (camAC){
+                        try {
+                            const sStream = new MediaStream([aTracks[0]]);
+                            screenAudioSrc = camAC.createMediaStreamSource(sStream);
+                            screenAudioSrc.connect(screenAudioGain);
+                        } catch(e){}
+                    }
+                } else {
+                    showToast('No tab audio shared — tip: check "Share tab audio" in the picker.');
+                }
+                // if the user stops sharing from the browser bar, fall back cleanly
+                stream.getVideoTracks()[0].addEventListener('ended', ()=>{ stopScreenCapture(true); });
+                // default to screen-only unless they had a webcam bubble going
+                setCamBg('screen', null);
+                if (!cameraPreview.videoWidth) camMode = 'photoonly';
+                updateModeUI();
+                showToast('Screen connected — pick how you appear below.');
+            } catch(e){
+                showToast('Screen share canceled.');
+            }
+        }
+        function stopScreenCapture(resetBg){
+            try { if (screenAudioSrc){ screenAudioSrc.disconnect(); screenAudioSrc = null; } } catch(e){}
+            if (screenStream){ try { screenStream.getTracks().forEach(t=>t.stop()); } catch(e){} screenStream = null; }
+            try { screenVideo.srcObject = null; } catch(e){}
+            if (resetBg && camBg.type === 'screen'){ setCamBg('none', null); }
+        }
+
+        // device-aware help for getting a TikTok Live into a video
+        (function(){
+            const btn = document.getElementById('liveHelpBtn');
+            const panel = document.getElementById('liveHelpPanel');
+            const caret = document.getElementById('liveHelpCaret');
+            if (!btn) return;
+            const desktopSteps = `<b class="text-amber-300">On a computer:</b><br>
+                1. Open the Live in a browser tab.<br>
+                2. Tap the <b>🖥️ Screen</b> tile above and pick that tab — tick <b>“Share tab audio.”</b><br>
+                3. Choose Screen-only or pop yourself in a bubble, then record.`;
+            const mobileSteps = `<b class="text-amber-300">On your phone (joining someone's Live):</b><br>
+                A guest Live only lives inside the TikTok app, so there's no window to capture here. Easiest way:<br>
+                1. Use your phone's <b>built-in screen recorder</b> to record the Live.<br>
+                2. Come back to Bee Reel → <b>Timeline tab → ＋ Upload</b> and add that recording as a clip.<br>
+                3. Add your Suno song in the Music tab and it plays under the clip.<br>
+                <span class="text-slate-400">Tip: screen recordings capture the Live's own sound — your song layers on top in the final video.</span>`;
+            panel.innerHTML = SCREEN_SUPPORTED ? desktopSteps : mobileSteps;
+            btn.addEventListener('click', ()=>{
+                const open = panel.classList.toggle('hidden') === false;
+                caret.textContent = open ? '▾' : '▸';
+            });
+        })();
 
         function bgTile(opts){
             // opts: {label, selected, onClick, bgImageUrl, icon}
@@ -2185,13 +2267,20 @@
             // None
             cameraBgStrip.appendChild(bgTile({
                 label:'None', icon:'🚫', selected: camBg.type==='none',
-                onClick: ()=> setCamBg('none', null)
+                onClick: ()=> { stopScreenCapture(false); setCamBg('none', null); }
             }));
+            // Screen / tab capture (computer only)
+            if (SCREEN_SUPPORTED){
+                cameraBgStrip.appendChild(bgTile({
+                    label:'Screen', icon:'🖥️', selected: camBg.type==='screen',
+                    onClick: ()=> startScreenCapture()
+                }));
+            }
             // timeline photos
             state.items.filter(i=>i.type==='image').forEach(it=>{
                 cameraBgStrip.appendChild(bgTile({
                     bgImageUrl: it.url, selected: camBg.type==='photo' && camBg.img===it.domElement,
-                    onClick: ()=> setCamBg('photo', it.domElement)
+                    onClick: ()=> { stopScreenCapture(false); setCamBg('photo', it.domElement); }
                 }));
             });
             // upload new
@@ -2235,7 +2324,7 @@
             return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height };
         }
         cameraCanvas.addEventListener('pointerdown', e=>{
-            if (!(camBg.type==='photo' && camMode==='bubble')) return;
+            if (!((camBg.type==='photo' || camBg.type==='screen') && camMode==='bubble')) return;
             const W = cameraCanvas.width, H = cameraCanvas.height;
             const p = evtToNorm(e);
             const px = p.x*W, py = p.y*H;
@@ -2286,6 +2375,7 @@
             sliceWrap.classList.add('hidden'); stopSlicePreview();
             micOn = true; updateMicBtn();
             camFadeOn = true; camFadeAlpha = 0; camFading = false; updateFadeBtn();
+            stopScreenCapture(false);
             camBg = { type:'none', img:null };
             camMode = 'bubble';
             camBubble = { x: 0.5, y: 0.62, size: 0.55 };
@@ -2310,6 +2400,7 @@
         function closeCamera(){
             if (camRecording) stopRecording(true);
             stopCamMusic(); camMusicOn = false; updateMusicBtn();
+            stopScreenCapture(false);
             camActive = false;
             cancelAnimationFrame(camRafId); camRafId = null;
             if (camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; }
@@ -2320,7 +2411,7 @@
         }
 
         function startRecording(){
-            if (!camStream) return;
+            if (!camStream && camBg.type !== 'screen') return;   // screen capture can record without a webcam
             camChunks = [];
             camRecMime = pickCamMime();
             // record the COMPOSITE canvas video + a cleanly mixed audio track
@@ -2341,7 +2432,7 @@
             }
             if (!usedGraph){
                 // fallback: raw mic track, honoring the mic toggle
-                const aud = camStream.getAudioTracks();
+                const aud = camStream ? camStream.getAudioTracks() : [];
                 if (aud[0]){ aud[0].enabled = micOn; tracks.push(aud[0]); }
             }
 
@@ -2402,6 +2493,7 @@
                     const now = camAC.currentTime;
                     if (camMusicGain){ camMusicGain.gain.cancelScheduledValues(now); camMusicGain.gain.setValueAtTime(camMusicGain.gain.value, now); camMusicGain.gain.linearRampToValueAtTime(0.0001, now + CAM_FADE_DUR); }
                     if (camMicGain){ camMicGain.gain.cancelScheduledValues(now); camMicGain.gain.setValueAtTime(camMicGain.gain.value, now); camMicGain.gain.linearRampToValueAtTime(0.0001, now + CAM_FADE_DUR); }
+                    if (screenAudioGain){ screenAudioGain.gain.cancelScheduledValues(now); screenAudioGain.gain.setValueAtTime(screenAudioGain.gain.value, now); screenAudioGain.gain.linearRampToValueAtTime(0.0001, now + CAM_FADE_DUR); }
                 }
             } catch(e){}
             // ramp the picture to black
@@ -2433,6 +2525,7 @@
                     const now = camAC.currentTime;
                     if (camMusicGain){ camMusicGain.gain.cancelScheduledValues(now); camMusicGain.gain.setValueAtTime(camMusicOn ? 1 : 0, now); }
                     if (camMicGain){ camMicGain.gain.cancelScheduledValues(now); camMicGain.gain.setValueAtTime(micOn ? 1 : 0, now); }
+                    if (screenAudioGain){ screenAudioGain.gain.cancelScheduledValues(now); screenAudioGain.gain.setValueAtTime(1, now); }
                 }
             } catch(e){}
         }
