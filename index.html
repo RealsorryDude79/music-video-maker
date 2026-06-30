@@ -177,6 +177,9 @@
 
     <main class="flex-1 relative overflow-hidden bg-slate-900">
 
+        <!-- decorative flying bee with fading tracer (behind everything, non-interactive) -->
+        <canvas id="flyBee" class="absolute inset-0 w-full h-full pointer-events-none" style="z-index:15;"></canvas>
+
         <!-- SCREEN 1: MUSIC -->
         <div id="screen-music" class="screen active p-6 scrollable-area overflow-y-auto">
             <div class="max-w-md mx-auto w-full">
@@ -581,6 +584,9 @@
             <button id="cameraMicBtn" class="px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2">
                 🎤 <span id="cameraMicLabel">Mic: ON</span>
             </button>
+            <button id="cameraFadeBtn" class="px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2">
+                🌅 <span id="cameraFadeLabel">Fade out ending: ON</span>
+            </button>
 
             <!-- Song slice scrubber (shown when Music is ON) -->
             <div id="sliceWrap" class="hidden w-full max-w-md">
@@ -597,9 +603,18 @@
                     <div id="sliceH2" class="absolute top-0 bottom-0 w-4 -ml-2 flex items-center justify-center cursor-ew-resize z-10">
                         <div class="w-1.5 h-7 bg-amber-300 rounded-full shadow"></div>
                     </div>
-                    <div id="slicePlayhead" class="absolute top-0 bottom-0 w-0.5 bg-white/80 hidden"></div>
+                    <!-- draggable scrub playhead -->
+                    <div id="slicePlayhead" class="absolute top-0 bottom-0 w-0.5 bg-white z-20" style="box-shadow:0 0 6px rgba(255,255,255,.8)">
+                        <div class="absolute -top-0.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white cursor-ew-resize"></div>
+                    </div>
                 </div>
-                <button id="slicePreviewBtn" class="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-amber-100 active:scale-95 transition">▶ Hear this part</button>
+                <div class="mt-1 text-center text-[10px] text-slate-500 font-mono">scrub: <span id="scrubPosTxt">0:00</span> — drag the white line or tap the bar to move</div>
+                <div class="flex gap-2 mt-2">
+                    <button id="scrubPlayBtn" class="px-4 py-1.5 rounded-lg text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-white active:scale-95 transition flex items-center gap-1 shrink-0">▶</button>
+                    <button id="setStartBtn" class="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-amber-700/60 hover:bg-amber-700 text-amber-50 border border-amber-600/50 active:scale-95 transition">⟍ Set start here</button>
+                    <button id="setEndBtn" class="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-amber-700/60 hover:bg-amber-700 text-amber-50 border border-amber-600/50 active:scale-95 transition">Set end here ⟋</button>
+                </div>
+                <button id="slicePreviewBtn" class="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-amber-100 active:scale-95 transition">▶ Hear just my clip section</button>
             </div>
 
             <p id="cameraMusicHint" class="hidden text-amber-300/90 text-[11px] text-center max-w-xs -mt-2">🎧 Use headphones for clean lip-sync. Music ON records the song into your clip; turn Mic OFF for pure lip-sync, ON to sing along.</p>
@@ -1739,6 +1754,10 @@
         const cameraMicLabel   = document.getElementById('cameraMicLabel');
         let camMusicOn = false;
         let micOn = true;
+        let camFadeOn = true;          // fade picture+sound out at the end of a take
+        let camFadeAlpha = 0;          // 0 = no fade, 1 = full black (live during fade)
+        let camFading = false;
+        const CAM_FADE_DUR = 1.2;      // seconds
         let camMusic = null;   // dedicated <audio> element for the song
 
         // dedicated audio graph for the camera: lets us record song + mic cleanly
@@ -1810,8 +1829,18 @@
             if (camMicGain) camMicGain.gain.value = micOn ? 1 : 0;
         });
 
+        const cameraFadeBtn = document.getElementById('cameraFadeBtn');
+        const cameraFadeLabel = document.getElementById('cameraFadeLabel');
+        function updateFadeBtn(){
+            cameraFadeLabel.textContent = 'Fade out ending: ' + (camFadeOn ? 'ON' : 'OFF');
+            cameraFadeBtn.className = 'px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition flex items-center gap-2 ' +
+                (camFadeOn ? 'bg-amber-600 border-amber-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-300');
+        }
+        cameraFadeBtn.addEventListener('click', ()=>{ camFadeOn = !camFadeOn; updateFadeBtn(); });
+
         // ----- Song slicer: pick start/end of the song to record to -----
         let sliceStart = 0, sliceEnd = 0, sliceReady = false, slicePreviewRaf = null;
+        let scrubPos = 0, scrubPlaying = false, scrubRaf = null;   // free playhead position
         const sliceWrap = document.getElementById('sliceWrap');
         const sliceTrack = document.getElementById('sliceTrack');
         const sliceSel = document.getElementById('sliceSel');
@@ -1824,20 +1853,21 @@
         function initSlicer(){
             const dur = state.audioDuration || (DOM.masterAudioPlayer.duration || 0);
             if (!dur || !isFinite(dur)){ return; }
-            // default to a 15s window from the start (or whole song if shorter)
             if (!sliceReady){
                 sliceStart = 0;
                 sliceEnd = Math.min(dur, 15);
                 sliceReady = true;
                 drawWaveform();
             }
+            scrubPos = sliceStart;
             sliceWrap.classList.remove('hidden');
-            layoutSlice();
+            layoutSlice(); layoutPlayhead();
         }
         function sliceDur(){ return Math.max(0.3, sliceEnd - sliceStart); }
+        function trackW(){ return sliceTrack.clientWidth || 1; }
         function layoutSlice(){
             const dur = state.audioDuration || 1;
-            const w = sliceTrack.clientWidth || 1;
+            const w = trackW();
             const x1 = (sliceStart/dur)*w, x2 = (sliceEnd/dur)*w;
             sliceH1.style.left = x1+'px';
             sliceH2.style.left = x2+'px';
@@ -1847,10 +1877,14 @@
             document.getElementById('sliceEndTxt').textContent = fmtT(sliceEnd);
             document.getElementById('sliceLenTxt').textContent = sliceDur().toFixed(1)+'s';
         }
+        function layoutPlayhead(){
+            const dur = state.audioDuration || 1;
+            slicePlayhead.style.left = ((scrubPos/dur)*trackW())+'px';
+            document.getElementById('scrubPosTxt').textContent = fmtT(scrubPos);
+        }
         async function drawWaveform(){
-            // lightweight amplitude waveform from the decoded song
             try {
-                const w = sliceTrack.clientWidth || 320, h = 48;
+                const w = trackW() || 320, h = 48;
                 sliceWave.width = w; sliceWave.height = h;
                 const wctx = sliceWave.getContext('2d');
                 wctx.clearRect(0,0,w,h);
@@ -1869,47 +1903,105 @@
                     const bh = Math.max(1, peak*h*0.9);
                     wctx.fillRect(x, (h-bh)/2, 1, bh);
                 }
-            } catch(e){ /* waveform is decorative; ignore failures */ }
+            } catch(e){ /* waveform decorative */ }
         }
-        // dragging the handles
-        let dragH = null;
+
         function sliceXToTime(clientX){
             const r = sliceTrack.getBoundingClientRect();
             const dur = state.audioDuration || 1;
             return Math.max(0, Math.min(dur, ((clientX - r.left)/r.width)*dur));
         }
-        function onSliceDown(e, which){ dragH = which; sliceTrack.setPointerCapture?.(e.pointerId); e.preventDefault(); }
-        sliceH1.addEventListener('pointerdown', e=>onSliceDown(e,'a'));
-        sliceH2.addEventListener('pointerdown', e=>onSliceDown(e,'b'));
-        sliceTrack.addEventListener('pointermove', e=>{
-            if (!dragH) return;
-            const t = sliceXToTime(e.clientX);
-            if (dragH==='a') sliceStart = Math.min(t, sliceEnd-0.3);
-            else sliceEnd = Math.max(t, sliceStart+0.3);
-            layoutSlice();
-            // live-scrub the song so you hear where the handle is
-            if (camMusic){ try { camMusic.currentTime = (dragH==='a'?sliceStart:sliceEnd); } catch(e){} }
-        });
-        function endSliceDrag(){ dragH=null; if(camMusic && camMusicOn){ try{ camMusic.currentTime=sliceStart; }catch(e){} } }
-        sliceTrack.addEventListener('pointerup', endSliceDrag);
-        sliceTrack.addEventListener('pointercancel', endSliceDrag);
-        window.addEventListener('resize', ()=>{ if(sliceReady && !sliceWrap.classList.contains('hidden')){ drawWaveform(); layoutSlice(); } });
-
-        function stopSlicePreview(){
-            cancelAnimationFrame(slicePreviewRaf); slicePreviewRaf=null;
-            slicePlayhead.classList.add('hidden');
-        }
-        document.getElementById('slicePreviewBtn').addEventListener('click', ()=>{
-            const m = ensureCamMusic(); if(!m) return;
+        function primeMusic(){
+            const m = ensureCamMusic(); if(!m) return null;
             ensureCamAudio(); connectMusicSource();
             if (camAC && camAC.state==='suspended') camAC.resume();
             if (camMusicGain) camMusicGain.gain.value = 1;
+            return m;
+        }
+        // move the scrub playhead to a time and (optionally) hear it
+        function seekScrub(t, audible){
+            scrubPos = Math.max(0, Math.min(state.audioDuration||1, t));
+            layoutPlayhead();
+            const m = ensureCamMusic();
+            if (m){ try { m.currentTime = scrubPos; } catch(e){} }
+            if (audible && !scrubPlaying){
+                // brief audio blip while scrubbing so you can hear where you are
+                const mm = primeMusic(); if(mm){ try{ mm.play(); }catch(e){}
+                    clearTimeout(seekScrub._blip);
+                    seekScrub._blip = setTimeout(()=>{ if(!scrubPlaying){ try{mm.pause();}catch(e){} } }, 220);
+                }
+            }
+        }
+
+        // --- dragging: handles (start/end) OR the playhead OR tap-to-seek on the bar ---
+        let dragH = null;
+        function onDown(e, which){ dragH = which; try{sliceTrack.setPointerCapture(e.pointerId);}catch(_){}; e.preventDefault(); e.stopPropagation(); }
+        sliceH1.addEventListener('pointerdown', e=>onDown(e,'a'));
+        sliceH2.addEventListener('pointerdown', e=>onDown(e,'b'));
+        slicePlayhead.addEventListener('pointerdown', e=>onDown(e,'scrub'));
+        // tapping empty track = move playhead there
+        sliceTrack.addEventListener('pointerdown', e=>{
+            if (dragH) return;  // a handle/playhead already grabbed it
+            dragH = 'scrub';
+            try{sliceTrack.setPointerCapture(e.pointerId);}catch(_){}
+            seekScrub(sliceXToTime(e.clientX), true);
+        });
+        sliceTrack.addEventListener('pointermove', e=>{
+            if (!dragH) return;
+            const t = sliceXToTime(e.clientX);
+            if (dragH==='a'){ sliceStart = Math.min(t, sliceEnd-0.3); layoutSlice(); seekScrub(sliceStart, true); }
+            else if (dragH==='b'){ sliceEnd = Math.max(t, sliceStart+0.3); layoutSlice(); seekScrub(sliceEnd, true); }
+            else { seekScrub(t, true); }   // scrubbing the playhead
+        });
+        function endDrag(){ dragH=null; }
+        sliceTrack.addEventListener('pointerup', endDrag);
+        sliceTrack.addEventListener('pointercancel', endDrag);
+        window.addEventListener('resize', ()=>{ if(sliceReady && !sliceWrap.classList.contains('hidden')){ drawWaveform(); layoutSlice(); layoutPlayhead(); } });
+
+        // --- play/pause from the playhead (continuous, to find your spot) ---
+        const scrubPlayBtn = document.getElementById('scrubPlayBtn');
+        function stopScrubPlay(){
+            scrubPlaying = false; cancelAnimationFrame(scrubRaf); scrubRaf=null;
+            scrubPlayBtn.textContent = '▶';
+            const m = ensureCamMusic(); if(m){ try{m.pause();}catch(e){} }
+        }
+        scrubPlayBtn.addEventListener('click', ()=>{
+            if (scrubPlaying){ stopScrubPlay(); return; }
+            const m = primeMusic(); if(!m) return;
+            try { m.currentTime = scrubPos; m.play(); } catch(e){}
+            scrubPlaying = true; scrubPlayBtn.textContent = '❚❚';
+            const dur = state.audioDuration || 1;
+            const tick = ()=>{
+                if (!scrubPlaying) return;
+                scrubPos = m.currentTime; layoutPlayhead();
+                if (scrubPos >= dur - 0.05){ stopScrubPlay(); return; }
+                scrubRaf = requestAnimationFrame(tick);
+            };
+            scrubRaf = requestAnimationFrame(tick);
+        });
+
+        // --- set the start / end to wherever the playhead is ---
+        document.getElementById('setStartBtn').addEventListener('click', ()=>{
+            sliceStart = Math.min(scrubPos, sliceEnd-0.3);
+            layoutSlice(); showToast('Start set to '+fmtT(sliceStart));
+        });
+        document.getElementById('setEndBtn').addEventListener('click', ()=>{
+            sliceEnd = Math.max(scrubPos, sliceStart+0.3);
+            layoutSlice(); showToast('End set to '+fmtT(sliceEnd));
+        });
+
+        function stopSlicePreview(){
+            cancelAnimationFrame(slicePreviewRaf); slicePreviewRaf=null;
+            stopScrubPlay();
+        }
+        document.getElementById('slicePreviewBtn').addEventListener('click', ()=>{
+            const m = primeMusic(); if(!m) return;
+            stopScrubPlay();
             try { m.currentTime = sliceStart; m.play(); } catch(e){}
-            slicePlayhead.classList.remove('hidden');
             const dur = state.audioDuration || 1;
             const tick = ()=>{
                 const t = m.currentTime;
-                slicePlayhead.style.left = ((t/dur)*(sliceTrack.clientWidth||1))+'px';
+                scrubPos = t; layoutPlayhead();
                 if (t >= sliceEnd){ try{ m.pause(); }catch(e){} stopSlicePreview(); return; }
                 slicePreviewRaf = requestAnimationFrame(tick);
             };
@@ -1957,6 +2049,16 @@
             ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.stroke();
             ctx.restore();
         }
+        // black overlay used to fade the picture out at the end of a recording
+        function applyCamFade(ctx){
+            if (camFadeAlpha > 0){
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, camFadeAlpha);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+                ctx.restore();
+            }
+        }
         // simple (non-AI) drawing: plain selfie, background + bubble, or photo only
         function drawSimple(){
             const ctx = camCtx, W = cameraCanvas.width, H = cameraCanvas.height;
@@ -1969,6 +2071,7 @@
                 if (camMode === 'bubble' && v.videoWidth) drawBubble(ctx, v);
                 // camMode === 'photoonly' -> just the cover art (voice still records)
             }
+            applyCamFade(ctx);
         }
         // AI cutout composite (called by MediaPipe each result)
         function onSegResults(results){
@@ -1988,6 +2091,7 @@
             // main canvas: background, then the cut-out person on top
             drawCamBackground(ctx);
             ctx.drawImage(personCanvas, 0, 0);
+            applyCamFade(ctx);
         }
 
         function camLoop(){
@@ -2181,6 +2285,7 @@
             camMusicOn = false; updateMusicBtn(); stopCamMusic();
             sliceWrap.classList.add('hidden'); stopSlicePreview();
             micOn = true; updateMicBtn();
+            camFadeOn = true; camFadeAlpha = 0; camFading = false; updateFadeBtn();
             camBg = { type:'none', img:null };
             camMode = 'bubble';
             camBubble = { x: 0.5, y: 0.62, size: 0.55 };
@@ -2259,8 +2364,8 @@
             if (camMusicOn){
                 const m = ensureCamMusic();
                 if (m){
+                    if (typeof stopScrubPlay === 'function') stopScrubPlay();
                     try { m.currentTime = sliceStart; m.play(); } catch(e){}
-                    slicePlayhead.classList.remove('hidden');
                 }
             }
             cameraRecBadge.classList.remove('hidden');
@@ -2275,24 +2380,61 @@
                 cameraTimerEl.textContent = (s/60|0) + ':' + String(s%60).padStart(2,'0');
                 // auto-stop at the slice end + move the playhead
                 if (camMusicOn && camMusic){
-                    slicePlayhead.style.left = ((camMusic.currentTime/dur)*(sliceTrack.clientWidth||1))+'px';
-                    if (camMusic.currentTime >= sliceEnd - 0.03){
-                        stopRecording();
+                    scrubPos = camMusic.currentTime; slicePlayhead.style.left = ((scrubPos/dur)*(sliceTrack.clientWidth||1))+'px';
+                    const fadeLead = (camFadeOn ? CAM_FADE_DUR : 0);
+                    if (!camFading && camMusic.currentTime >= sliceEnd - fadeLead - 0.03){
+                        requestStop();
                     }
                 }
             }, 80);
         }
 
+        // Called when the user (or auto-stop) ends a take. Runs a fade-out first
+        // if enabled, then performs the real stop.
+        function requestStop(){
+            if (!camRecording || camFading) return;
+            if (!camFadeOn){ stopRecording(); return; }
+            camFading = true;
+            cameraHint.textContent = 'Fading out…';
+            // ramp the recorded audio down
+            try {
+                if (camAC){
+                    const now = camAC.currentTime;
+                    if (camMusicGain){ camMusicGain.gain.cancelScheduledValues(now); camMusicGain.gain.setValueAtTime(camMusicGain.gain.value, now); camMusicGain.gain.linearRampToValueAtTime(0.0001, now + CAM_FADE_DUR); }
+                    if (camMicGain){ camMicGain.gain.cancelScheduledValues(now); camMicGain.gain.setValueAtTime(camMicGain.gain.value, now); camMicGain.gain.linearRampToValueAtTime(0.0001, now + CAM_FADE_DUR); }
+                }
+            } catch(e){}
+            // ramp the picture to black
+            const t0 = performance.now();
+            const fadeStep = ()=>{
+                const p = (performance.now() - t0) / (CAM_FADE_DUR*1000);
+                camFadeAlpha = Math.min(1, p);
+                if (p < 1 && camFading){ requestAnimationFrame(fadeStep); }
+                else { stopRecording(); }
+            };
+            requestAnimationFrame(fadeStep);
+        }
+
         function stopRecording(){
             if (!camRecording) return;
             camRecording = false;
+            camFading = false;
             camRecordedSec = (performance.now() - camStartedAt) / 1000;
             stopCamMusic();
-            slicePlayhead.classList.add('hidden');
+            scrubPos = sliceStart; if (typeof layoutPlayhead === 'function') layoutPlayhead();
             try { if (camRecorder && camRecorder.state === 'recording') camRecorder.stop(); } catch(e){}
             clearInterval(camTimerId);
             cameraRecBadge.classList.add('hidden');
             cameraRecordInner.className = 'w-16 h-16 rounded-full bg-red-500 transition-all';
+            // reset fade + restore gains for the next take
+            camFadeAlpha = 0;
+            try {
+                if (camAC){
+                    const now = camAC.currentTime;
+                    if (camMusicGain){ camMusicGain.gain.cancelScheduledValues(now); camMusicGain.gain.setValueAtTime(camMusicOn ? 1 : 0, now); }
+                    if (camMicGain){ camMicGain.gain.cancelScheduledValues(now); camMicGain.gain.setValueAtTime(micOn ? 1 : 0, now); }
+                }
+            } catch(e){}
         }
 
         function showReview(){
@@ -2321,6 +2463,7 @@
         }
 
         function retake(){
+            camFadeAlpha = 0; camFading = false;
             try { cameraReview.pause(); cameraReview.removeAttribute('src'); cameraReview.load(); } catch(e){}
             cameraReview.classList.add('hidden');
             cameraCanvas.classList.remove('hidden');
@@ -2335,7 +2478,7 @@
         document.getElementById('cameraCloseBtn').addEventListener('click', closeCamera);
         document.getElementById('cameraRetakeBtn').addEventListener('click', retake);
         document.getElementById('cameraUseBtn').addEventListener('click', useRecording);
-        cameraRecordBtn.addEventListener('click', ()=>{ if (camRecording) stopRecording(); else startRecording(); });
+        cameraRecordBtn.addEventListener('click', ()=>{ if (camRecording) requestStop(); else startRecording(); });
         document.getElementById('cameraFlipBtn').addEventListener('click', async ()=>{
             if (camRecording) return;
             camFacing = (camFacing === 'user') ? 'environment' : 'user';
@@ -3156,6 +3299,137 @@
                     };
                 }
             } catch(e){ /* IndexedDB unavailable — app still works, just no persistence */ }
+        })();
+
+        // ---------------- Decorative flying bee with fading tracer ----------------
+        (function flyingBee(){
+            const cv = document.getElementById('flyBee');
+            if(!cv) return;
+            const g = cv.getContext('2d');
+            let DPR = Math.min(2, window.devicePixelRatio||1);
+            let W=0, H=0;
+
+            function resize(){
+                const r = cv.getBoundingClientRect();
+                W = r.width; H = r.height;
+                cv.width = Math.max(1, W*DPR); cv.height = Math.max(1, H*DPR);
+                g.setTransform(DPR,0,0,DPR,0,0);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const beeSVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 56' width='64' height='56'>
+                <g>
+                  <ellipse cx='26' cy='14' rx='11' ry='7' fill='%23fffbeb' fill-opacity='0.9' stroke='%23fcd34d' stroke-width='1.5'/>
+                  <ellipse cx='40' cy='14' rx='11' ry='7' fill='%23fffbeb' fill-opacity='0.9' stroke='%23fcd34d' stroke-width='1.5'/>
+                  <ellipse cx='33' cy='34' rx='17' ry='13' fill='%23f6ad1c' stroke='%2392400e' stroke-width='2'/>
+                  <path d='M30 22.5 Q33 21.6 38.5 24 L41 31 Q35 29 28.5 30 Z' fill='%233b2207'/>
+                  <path d='M27 31 Q34 29.6 43 32 L42.5 39 Q34 37.4 26.5 39 Z' fill='%233b2207'/>
+                  <path d='M27.5 40 Q34 38.6 42 40.6 L38 46 Q32 47.6 28.5 45 Z' fill='%233b2207'/>
+                  <path d='M49 35 l7 2 -7 2 z' fill='%2392400e'/>
+                  <circle cx='20.5' cy='31' r='2.4' fill='%231c1206'/>
+                  <path d='M22 21 q-3 -6 -7 -7' fill='none' stroke='%2392400e' stroke-width='1.6' stroke-linecap='round'/>
+                  <circle cx='14.5' cy='13.5' r='1.8' fill='%23fbbf24'/>
+                </g></svg>`;
+            const beeImg = new Image();
+            beeImg.src = 'data:image/svg+xml;utf8,' + beeSVG.replace(/\n\s*/g,'');
+            let beeReady=false; beeImg.onload=()=>beeReady=true;
+
+            const SIZE = 78;             // header-bee size
+            const N = 5;                 // five bees
+            const bees = [];
+            for (let i=0;i<N;i++){
+                bees.push({
+                    x: 60 + Math.random()*200, y: 60 + Math.random()*200,
+                    head: Math.random()*Math.PI*2,
+                    speed: 82 + Math.random()*46,           // varied speeds -> independent feel
+                    wOff: Math.random()*10,                 // wander phase offset
+                    maneuver: null, manT: 0, manDur: 0, nextManIn: 1.5 + Math.random()*3,
+                    dashes: [], dropAccum: 0
+                });
+            }
+            let last = performance.now();
+
+            function pickManeuver(b){
+                // ONLY flat-plane maneuvers (curved paths) — never a flip/squash
+                const r = Math.random();
+                if (r < 0.5){ b.maneuver='loop';   b.manDur=1.3 + Math.random()*0.5; }  // loop-de-loop (flat circle)
+                else        { b.maneuver='swirl';  b.manDur=1.6 + Math.random()*0.6; }  // tight S / spiral
+                b.manT = 0;
+            }
+
+            function updateBee(b, dt){
+                const mLeft=50, mRight=50, mTop=46, mBot=60;
+
+                if (!b.maneuver){
+                    b.nextManIn -= dt;
+                    if (b.nextManIn <= 0){ pickManeuver(b); b.nextManIn = 2.6 + Math.random()*3.2; }
+                }
+
+                const wt = (performance.now()/1000) + b.wOff;
+                let turn = Math.sin(wt*0.9)*0.7 + Math.sin(wt*0.37+1.3)*0.5;
+
+                if (b.maneuver){
+                    b.manT += dt; const p = b.manT/b.manDur;
+                    if (b.maneuver==='loop'){ turn += 6.0; }                       // full flat loop
+                    else if (b.maneuver==='swirl'){ turn += 3.2*Math.sin(p*Math.PI*2); } // flat S-curve
+                    if (p>=1){ b.maneuver=null; }
+                }
+
+                // steer away from edges (all in-plane heading changes)
+                const nx = b.x + Math.cos(b.head)*44;
+                let avoid = 0;
+                if (nx < mLeft)  avoid += 2.6;
+                if (nx > W-mRight) avoid -= 2.6;
+                let vY = 0;
+                if (b.y < mTop) vY = 1; else if (b.y > H-mBot) vY = -1;
+
+                b.head += (turn + avoid) * dt;
+                if (vY!==0){ const desired = vY>0?Math.PI/2:-Math.PI/2; b.head += Math.sin(desired-b.head)*1.9*dt; }
+
+                b.x += Math.cos(b.head)*b.speed*dt;
+                b.y += Math.sin(b.head)*b.speed*dt;
+                b.x = Math.max(mLeft, Math.min(W-mRight, b.x));
+                b.y = Math.max(mTop,  Math.min(H-mBot,  b.y));
+
+                // tracer dashes
+                b.dropAccum += b.speed*dt;
+                if (b.dropAccum >= 26){ b.dropAccum = 0; b.dashes.push({ x:b.x, y:b.y, ang:b.head, life:1 }); }
+                for (const d of b.dashes){ d.life -= dt/0.85; }
+                while (b.dashes.length && b.dashes[0].life <= 0) b.dashes.shift();
+                if (b.dashes.length > 14) b.dashes.splice(0, b.dashes.length-14);
+            }
+
+            function drawBee(b){
+                // tracer
+                for (const d of b.dashes){
+                    const a = Math.max(0, d.life);
+                    g.save();
+                    g.translate(d.x, d.y); g.rotate(d.ang);
+                    g.globalAlpha = a*0.65;
+                    g.strokeStyle = '#ffffff'; g.lineWidth = 2.4; g.lineCap='round';
+                    g.beginPath(); g.moveTo(-9,0); g.lineTo(6,0); g.stroke();
+                    g.restore();
+                }
+                g.globalAlpha = 1;
+                if (beeReady){
+                    g.save();
+                    g.translate(b.x, b.y);
+                    g.rotate(b.head);          // only flat, in-plane rotation — always fully 2D
+                    g.globalAlpha = 0.96;
+                    g.drawImage(beeImg, -SIZE/2, -SIZE*0.45, SIZE, SIZE*0.9);
+                    g.restore();
+                }
+            }
+
+            function step(now){
+                const dt = Math.min(0.05, (now-last)/1000); last = now;
+                if (!W){ resize(); }
+                g.clearRect(0,0,W,H);
+                for (const b of bees){ updateBee(b, dt); drawBee(b); }
+                requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
         })();
     </script>
 </body>
